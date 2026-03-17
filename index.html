@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Expense Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   *{box-sizing:border-box;margin:0;padding:0;}
   body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0efeb;color:#1a1a1a;min-height:100vh;}
@@ -55,15 +56,23 @@
   .metric-value.cost{color:#6d28d9;}
 
   .section-title{font-size:11px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:0.5px;margin:16px 0 8px;}
-  .cat-row{background:#fff;border-radius:10px;padding:12px;border:1px solid #e0ddd6;margin-bottom:8px;}
+  .cat-row{background:#fff;border-radius:10px;padding:12px;border:1px solid #e0ddd6;margin-bottom:8px;cursor:pointer;transition:box-shadow .15s;}
+  .cat-row:hover{box-shadow:0 2px 8px rgba(0,0,0,.08);}
   .cat-top{display:flex;justify-content:space-between;margin-bottom:7px;}
   .cat-name{font-size:14px;font-weight:500;}
   .cat-amount{font-size:14px;font-weight:700;}
   .cat-bar-wrap{background:#f0efeb;border-radius:99px;height:5px;overflow:hidden;}
   .cat-bar{height:100%;border-radius:99px;}
   .cat-pct{font-size:11px;color:#bbb;margin-top:5px;}
+  .cat-drill-hint{font-size:11px;color:#aaa;margin-top:3px;}
 
   /* Transactions */
+  .tx-toolbar{display:flex;gap:8px;margin-bottom:10px;align-items:center;}
+  .search-box{flex:1;padding:9px 12px;border:1px solid #ddd;border-radius:10px;font-size:13px;background:#fff;color:#1a1a1a;outline:none;}
+  .search-box:focus{border-color:#1a1a1a;}
+  .sort-btn{padding:9px 12px;border:1px solid #ddd;border-radius:10px;background:#fff;font-size:13px;color:#555;cursor:pointer;white-space:nowrap;flex-shrink:0;}
+  .sort-btn.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a;}
+
   .filter-bar{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
   .filter-bar::-webkit-scrollbar{display:none;}
   .filter-chip{flex-shrink:0;padding:6px 13px;border-radius:99px;border:1px solid #ddd;background:#fff;font-size:12px;color:#555;cursor:pointer;white-space:nowrap;}
@@ -114,6 +123,62 @@
   .cat-btn{padding:12px 8px;border-radius:10px;border:1px solid #e0ddd6;background:#fff;font-size:13px;font-weight:500;cursor:pointer;text-align:center;}
   .cat-btn.selected{border-width:2px;}
   .modal-cancel{width:100%;margin-top:12px;padding:13px;border:1px solid #ddd;border-radius:10px;background:transparent;font-size:14px;color:#555;cursor:pointer;}
+
+  /* Sort dropdown */
+  .sort-menu{position:absolute;right:14px;background:#fff;border:1px solid #e0ddd6;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.1);z-index:50;min-width:180px;overflow:hidden;}
+  .sort-option{padding:11px 14px;font-size:13px;cursor:pointer;border:none;background:transparent;width:100%;text-align:left;color:#1a1a1a;}
+  .sort-option:hover{background:#f8f7f4;}
+  .sort-option.active{font-weight:600;color:#1a1a1a;}
+
+  /* Scroll FABs */
+  .fab-group{position:fixed;bottom:24px;right:16px;display:flex;flex-direction:column;gap:8px;z-index:30;}
+  .fab{width:40px;height:40px;border-radius:50%;background:#1a1a1a;color:#fff;border:none;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s;}
+  .fab.visible{opacity:1;pointer-events:all;}
+
+  /* Statistics */
+  .stats-section{margin-bottom:24px;}
+  .stats-section-header{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+  .stats-section-label{font-size:13px;font-weight:700;color:#1a1a1a;}
+  .stats-total{font-size:13px;font-weight:700;margin-left:auto;}
+  .stats-total.out{color:#b91c1c;}
+  .stats-total.in{color:#15803d;}
+  .chart-wrap{background:#fff;border-radius:12px;border:1px solid #e0ddd6;padding:16px;margin-bottom:12px;display:flex;justify-content:center;}
+  .chart-wrap canvas{max-width:260px;max-height:260px;}
+  .stats-list-item{background:#fff;border:1px solid #e0ddd6;border-radius:10px;padding:11px 14px;margin-bottom:6px;display:flex;align-items:center;gap:10px;}
+  .stats-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+  .stats-name{font-size:13px;flex:1;font-weight:500;}
+  .stats-pct{font-size:12px;color:#999;margin-right:8px;}
+  .stats-amt{font-size:13px;font-weight:700;}
+
+  /* Category drill modal */
+  .drill-modal{background:#fff;border-radius:16px 16px 0 0;padding:20px 16px 40px;width:100%;max-width:480px;max-height:92vh;overflow-y:auto;}
+  .drill-chart-wrap{background:#f8f7f4;border-radius:10px;padding:12px;margin-bottom:14px;}
+  .drill-chart-wrap canvas{width:100%!important;height:200px!important;}
+  .drill-tx-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0efeb;}
+  .drill-tx-item:last-child{border-bottom:none;}
+  .drill-tx-name{font-size:13px;font-weight:500;}
+  .drill-tx-date{font-size:11px;color:#aaa;margin-top:2px;}
+  .drill-tx-amt{font-size:13px;font-weight:700;color:#b91c1c;}
+
+  /* Categories tab */
+  .cat-manage-row{background:#fff;border:1px solid #e0ddd6;border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;}
+  .cat-color-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
+  .cat-manage-name{font-size:14px;font-weight:500;flex:1;}
+  .cat-edit-btn{padding:6px 11px;border:1px solid #ddd;border-radius:8px;background:transparent;font-size:12px;color:#555;cursor:pointer;}
+  .cat-del-btn{padding:6px 11px;border:1px solid #fca5a5;border-radius:8px;background:transparent;font-size:12px;color:#b91c1c;cursor:pointer;}
+  .cat-add-row{display:flex;gap:8px;margin-top:10px;}
+  .cat-add-input{flex:1;padding:10px 12px;border:1px solid #ddd;border-radius:10px;font-size:14px;background:#fff;}
+  .cat-add-btn{padding:10px 16px;background:#1a1a1a;border:none;border-radius:10px;color:#fff;font-size:14px;cursor:pointer;white-space:nowrap;}
+
+  /* Inline edit */
+  .inline-edit{display:flex;gap:6px;flex:1;align-items:center;}
+  .inline-edit input{flex:1;padding:6px 10px;border:1px solid #1a1a1a;border-radius:8px;font-size:14px;}
+  .inline-edit button{padding:6px 10px;border:none;border-radius:8px;font-size:12px;cursor:pointer;}
+  .inline-save{background:#1a1a1a;color:#fff;}
+  .inline-cancel{background:#eee;color:#555;}
+
+  /* Sort relative positioning */
+  .tx-sort-wrap{position:relative;}
 </style>
 </head>
 <body>
@@ -129,8 +194,10 @@
 <div class="tab-bar">
   <button class="tab active" onclick="switchTab('input')">Add SMS</button>
   <button class="tab" onclick="switchTab('dashboard')">Dashboard</button>
+  <button class="tab" onclick="switchTab('statistics')">Statistics</button>
   <button class="tab" onclick="switchTab('transactions')">Transactions</button>
   <button class="tab" onclick="switchTab('rules')">Rules</button>
+  <button class="tab" onclick="switchTab('categories')">Categories</button>
 </div>
 
 <!-- ADD SMS -->
@@ -153,7 +220,7 @@ Confirmed. Payment of KES. 750.00 to MOSES NJOGU MAINA Till No. 0700388147 has b
     <strong>Equity Bank:</strong> Search "Equity" or "EQA" in your SMS app → select all → copy → paste here.
   </div>
   <div style="margin-top:16px;">
-    <button class="btn-danger" onclick="clearAll()">Clear all transactions</button>
+    <button class="btn-danger" onclick="clearAll()">Clear all transactions &amp; data</button>
   </div>
 </div>
 
@@ -164,23 +231,17 @@ Confirmed. Payment of KES. 750.00 to MOSES NJOGU MAINA Till No. 0700388147 has b
     No transactions yet.<br>Go to Add SMS to get started.
   </div>
   <div id="dashboard-content" style="display:none">
-
-    <!-- Period tabs -->
     <div class="period-tabs">
       <button class="period-tab active" onclick="setPeriod('day',event)">Day</button>
       <button class="period-tab" onclick="setPeriod('week',event)">Week</button>
       <button class="period-tab" onclick="setPeriod('month',event)">Month</button>
       <button class="period-tab" onclick="setPeriod('range',event)">Custom</button>
     </div>
-
-    <!-- Navigation (hidden for custom range) -->
     <div class="period-nav" id="period-nav">
       <button onclick="shiftPeriod(-1)">&#8249;</button>
       <span class="period-label" id="period-label">—</span>
       <button onclick="shiftPeriod(1)">&#8250;</button>
     </div>
-
-    <!-- Date range picker (hidden by default) -->
     <div id="range-picker" style="display:none">
       <div class="date-range-row">
         <input type="date" id="range-from">
@@ -189,31 +250,61 @@ Confirmed. Payment of KES. 750.00 to MOSES NJOGU MAINA Till No. 0700388147 has b
         <button onclick="applyRange()">Go</button>
       </div>
     </div>
-
     <div class="summary-grid">
       <div class="metric"><div class="metric-label">Spent</div><div class="metric-value out" id="total-out">—</div></div>
       <div class="metric"><div class="metric-label">Received</div><div class="metric-value in" id="total-in">—</div></div>
       <div class="metric"><div class="metric-label">Transactions</div><div class="metric-value" id="tx-count">—</div></div>
       <div class="metric"><div class="metric-label">Tx costs</div><div class="metric-value cost" id="total-cost">—</div></div>
     </div>
-    <div class="section-title">Spending by category</div>
+    <div class="section-title">Spending by category <span style="font-size:10px;color:#bbb;font-weight:400;text-transform:none;letter-spacing:0">(tap to drill down)</span></div>
     <div id="category-list"></div>
+  </div>
+</div>
+
+<!-- STATISTICS -->
+<div id="tab-statistics" class="section">
+  <div id="stats-empty" class="empty">
+    <div class="empty-icon">📈</div>
+    No transactions yet.<br>Go to Add SMS to get started.
+  </div>
+  <div id="stats-content" style="display:none">
+    <!-- Income section -->
+    <div class="stats-section">
+      <div class="stats-section-header">
+        <span style="font-size:18px">💰</span>
+        <span class="stats-section-label">Income</span>
+        <span class="stats-total in" id="stats-total-in">—</span>
+      </div>
+      <div class="chart-wrap"><canvas id="chart-income"></canvas></div>
+      <div id="stats-income-list"></div>
+    </div>
+    <!-- Expenses section -->
+    <div class="stats-section">
+      <div class="stats-section-header">
+        <span style="font-size:18px">💸</span>
+        <span class="stats-section-label">Expenses</span>
+        <span class="stats-total out" id="stats-total-out">—</span>
+      </div>
+      <div class="chart-wrap"><canvas id="chart-expense"></canvas></div>
+      <div id="stats-expense-list"></div>
+    </div>
   </div>
 </div>
 
 <!-- TRANSACTIONS -->
 <div id="tab-transactions" class="section">
-  <div class="filter-bar">
-    <button class="filter-chip active" onclick="setFilter('All',event)">All</button>
-    <button class="filter-chip" onclick="setFilter('Uncategorised',event)">⚠ Uncat.</button>
-    <button class="filter-chip" onclick="setFilter('Food & Shopping',event)">Food</button>
-    <button class="filter-chip" onclick="setFilter('Transport',event)">Transport</button>
-    <button class="filter-chip" onclick="setFilter('Bills & Utilities',event)">Bills</button>
-    <button class="filter-chip" onclick="setFilter('Airtime & Data',event)">Airtime</button>
-    <button class="filter-chip" onclick="setFilter('Money Sent',event)">Sent</button>
-    <button class="filter-chip" onclick="setFilter('Money Received',event)">Received</button>
-    <button class="filter-chip" onclick="setFilter('Savings & Loans',event)">Savings</button>
-    <button class="filter-chip" onclick="setFilter('Other',event)">Other</button>
+  <div class="tx-toolbar tx-sort-wrap">
+    <input class="search-box" id="tx-search" placeholder="Search transactions…" oninput="renderTransactions()" autocomplete="off">
+    <button class="sort-btn" id="sort-toggle-btn" onclick="toggleSortMenu()">⇅ Sort</button>
+    <div class="sort-menu" id="sort-menu" style="display:none;top:44px;">
+      <button class="sort-option active" id="sort-opt-newest" onclick="setSort('newest')">Newest first</button>
+      <button class="sort-option" id="sort-opt-oldest" onclick="setSort('oldest')">Oldest first</button>
+      <button class="sort-option" id="sort-opt-highest" onclick="setSort('highest')">Highest amount</button>
+      <button class="sort-option" id="sort-opt-lowest" onclick="setSort('lowest')">Lowest amount</button>
+    </div>
+  </div>
+  <div class="filter-bar" id="filter-bar">
+    <!-- rendered dynamically -->
   </div>
   <div id="tx-empty" class="empty"><div class="empty-icon">🧾</div>No transactions yet.</div>
   <div id="tx-list"></div>
@@ -243,7 +334,23 @@ Confirmed. Payment of KES. 750.00 to MOSES NJOGU MAINA Till No. 0700388147 has b
   <button class="btn-ghost" style="margin-top:8px" onclick="reapplyAllRules()">Re-apply all rules to existing transactions</button>
 </div>
 
-<!-- MODAL -->
+<!-- CATEGORIES -->
+<div id="tab-categories" class="section">
+  <div style="margin-bottom:12px;font-size:13px;color:#888;line-height:1.6">
+    Manage your categories. Changes apply to the category picker and filter bar. 
+    Renaming updates all matching transactions. Deleting reassigns transactions to <strong>Uncategorised</strong>.
+  </div>
+  <div id="cat-manage-list"></div>
+  <div style="margin-top:16px;">
+    <div class="section-title">Add new category</div>
+    <div class="cat-add-row">
+      <input class="cat-add-input" id="new-cat-name" placeholder="Category name e.g. Cash Expenses" maxlength="40">
+      <button class="cat-add-btn" onclick="addCategory()">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Category picker -->
 <div class="modal-overlay" id="modal" onclick="closeModalOutside(event)">
   <div class="modal">
     <div class="modal-title" id="modal-title"></div>
@@ -255,9 +362,31 @@ Confirmed. Payment of KES. 750.00 to MOSES NJOGU MAINA Till No. 0700388147 has b
   </div>
 </div>
 
+<!-- MODAL: Category drill-down -->
+<div class="modal-overlay" id="drill-modal" onclick="closeDrillOutside(event)">
+  <div class="drill-modal">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
+      <div>
+        <div class="modal-title" id="drill-title"></div>
+        <div style="font-size:13px;color:#888;margin-top:3px" id="drill-sub"></div>
+      </div>
+      <button onclick="closeDrill()" style="background:none;border:none;font-size:20px;color:#aaa;cursor:pointer;padding:0 0 0 10px;">✕</button>
+    </div>
+    <div class="drill-chart-wrap"><canvas id="drill-chart"></canvas></div>
+    <div class="section-title" style="margin-top:0">Transactions</div>
+    <div id="drill-tx-list"></div>
+  </div>
+</div>
+
+<!-- FABs -->
+<div class="fab-group" id="fab-group" style="display:none">
+  <button class="fab" id="fab-top" title="Scroll to top" onclick="scrollToTop()">↑</button>
+  <button class="fab visible" id="fab-bottom" title="Scroll to bottom" onclick="scrollToBottom()">↓</button>
+</div>
+
 <script>
 // ── CATEGORIES ────────────────────────────────────────────────────────────────
-const CATS=[
+const DEFAULT_CATS=[
   {name:'Food & Shopping',  color:'#15803d',bg:'#dcfce7',bar:'#16a34a'},
   {name:'Transport',        color:'#1d4ed8',bg:'#dbeafe',bar:'#2563eb'},
   {name:'Bills & Utilities',color:'#a16207',bg:'#fef9c3',bar:'#ca8a04'},
@@ -268,22 +397,49 @@ const CATS=[
   {name:'Other',            color:'#374151',bg:'#f3f4f6',bar:'#6b7280'},
   {name:'Uncategorised',    color:'#92400e',bg:'#fef3c7',bar:'#f59e0b'},
 ];
-const catMap=Object.fromEntries(CATS.map(c=>[c.name,c]));
+
+// Predefined palette for new categories
+const EXTRA_COLORS=[
+  {color:'#be185d',bg:'#fce7f3',bar:'#db2777'},
+  {color:'#0e7490',bg:'#cffafe',bar:'#0891b2'},
+  {color:'#7c2d12',bg:'#ffedd5',bar:'#ea580c'},
+  {color:'#4338ca',bg:'#e0e7ff',bar:'#6366f1'},
+  {color:'#166534',bg:'#dcfce7',bar:'#22c55e'},
+  {color:'#713f12',bg:'#fef9c3',bar:'#d97706'},
+  {color:'#1e1b4b',bg:'#ede9fe',bar:'#8b5cf6'},
+  {color:'#134e4a',bg:'#ccfbf1',bar:'#14b8a6'},
+];
+
+const CATS_KEY='ke_cats_v1';
+
+function loadCats(){
+  const stored=localStorage.getItem(CATS_KEY);
+  if(stored)return JSON.parse(stored);
+  return DEFAULT_CATS.map(c=>({...c}));
+}
+function saveCats(){localStorage.setItem(CATS_KEY,JSON.stringify(CATS));}
+
+let CATS=loadCats();
+
+function getCatMap(){return Object.fromEntries(CATS.map(c=>[c.name,c]));}
+function getUncatEntry(){return CATS.find(c=>c.name==='Uncategorised')||{name:'Uncategorised',color:'#92400e',bg:'#fef3c7',bar:'#f59e0b'};}
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 const TX_KEY='ke_tx_v5', RULES_KEY='ke_rules_v1';
 let transactions=JSON.parse(localStorage.getItem(TX_KEY)||'[]');
 let nameRules=JSON.parse(localStorage.getItem(RULES_KEY)||'{}');
 let activeFilter='All', editingIndex=-1;
-let periodMode='month'; // day | week | month | range
-let periodOffset=0;     // 0=current, -1=previous, etc.
+let periodMode='month';
+let periodOffset=0;
 let rangeFrom=null, rangeTo=null;
+let currentSort='newest';
+let sortMenuOpen=false;
+let incomeChartInst=null, expenseChartInst=null, drillChartInst=null;
 
 function save(){localStorage.setItem(TX_KEY,JSON.stringify(transactions));}
 function saveRules(){localStorage.setItem(RULES_KEY,JSON.stringify(nameRules));}
 
 // ── DATE HELPERS ──────────────────────────────────────────────────────────────
-// Parse "14/3/26" or "14/3/2026" → Date
 function parseDate(str){
   if(!str)return null;
   const p=str.split('/');
@@ -292,7 +448,6 @@ function parseDate(str){
   if(y<100)y+=2000;
   return new Date(y,parseInt(p[1])-1,parseInt(p[0]));
 }
-
 function startOfDay(d){return new Date(d.getFullYear(),d.getMonth(),d.getDate());}
 function startOfWeek(d){const c=startOfDay(d);c.setDate(c.getDate()-c.getDay());return c;}
 function startOfMonth(d){return new Date(d.getFullYear(),d.getMonth(),1);}
@@ -313,7 +468,6 @@ function getPeriodBounds(){
     const opts={day:'numeric',month:'short'};
     return{from:w,to:end,label:w.toLocaleDateString('en-KE',opts)+' – '+end.toLocaleDateString('en-KE',opts)};
   }
-  // month
   const m=startOfMonth(now);m.setMonth(m.getMonth()+periodOffset);
   const end=new Date(m.getFullYear(),m.getMonth()+1,0,23,59,59);
   return{from:m,to:end,label:m.toLocaleDateString('en-KE',{month:'long',year:'numeric'})};
@@ -330,24 +484,16 @@ function filterByPeriod(txs){
 }
 
 // ── PARSER ────────────────────────────────────────────────────────────────────
-
-// Normalise date strings to DD/MM/YY for storage
 function normDate(str){
   if(!str)return'';
-  // Already DD/MM/YY or DD/MM/YYYY
   if(/\d{1,2}\/\d{1,2}\/\d{2,4}/.test(str))return str;
-  // Equity format: DD-MM-YYYY
   const m=str.match(/(\d{1,2})-(\d{1,2})-(\d{4})/);
   if(m)return m[1]+'/'+m[2]+'/'+m[3];
   return str;
 }
-
-// Normalise 24hr time to "HH:MM AM/PM"
 function norm24Time(str){
   if(!str)return'';
-  // Already has AM/PM
   if(/[AP]M/i.test(str))return str.toUpperCase();
-  // 24hr like "20:53" or "20:53:29"
   const m=str.match(/(\d{1,2}):(\d{2})/);
   if(!m)return str;
   let h=parseInt(m[1]),min=m[2];
@@ -366,11 +512,9 @@ function parseMpesaMessages(text){
     if(!refMatch)continue;
     const ref=refMatch[1];
     if(transactions.some(t=>t.ref===ref)||results.some(r=>r.ref===ref))continue;
-
     const amtMatch=b.match(/Ksh\s?([\d,]+\.?\d*)/i);
     const amount=amtMatch?parseFloat(amtMatch[1].replace(/,/g,'')):null;
     if(!amount)continue;
-
     const dateMatch=b.match(/\b(\d{1,2}\/\d{1,2}\/\d{2,4})\b/);
     const date=dateMatch?normDate(dateMatch[1]):'';
     const timeMatch=b.match(/\b(\d{1,2}:\d{2}\s*[AP]M)\b/i);
@@ -379,9 +523,7 @@ function parseMpesaMessages(text){
     const balance=balMatch?parseFloat(balMatch[1].replace(/,/g,'')):null;
     const costMatch=b.match(/[Tt]ransaction cost[,.]?\s*Ksh\s?([\d,]+\.?\d*)/i);
     const txCost=costMatch?parseFloat(costMatch[1].replace(/,/g,'')):0;
-
     let type='debit',description='',aiCategory='Uncategorised';
-
     if(/you have received|received Ksh/i.test(b)){
       type='credit';aiCategory='Money Received';
       const m=b.match(/received Ksh[\s\d,.]+ from ([A-Z][A-Z0-9 ]+?)(?:\s+\d{10,}|\s+on\b|\.)/i);
@@ -417,7 +559,6 @@ function parseMpesaMessages(text){
       const m=b.match(/(?:paid to|to) ([A-Z][A-Z0-9&\- ]+?)(?:\s+via|\s+on\b|\.)/i);
       description=m?m[1].trim():'Payment';
     }
-
     const rawSnippet=b.length>220?b.slice(0,220)+'…':b;
     results.push({ref,description,amount,type,category:aiCategory,source:'M-Pesa',date,time,balance,txCost,autoRule:null,raw:rawSnippet});
   }
@@ -426,30 +567,21 @@ function parseMpesaMessages(text){
 
 function parseEquityMessages(text){
   const results=[];
-
-  // Collect all M-Pesa refs already seen (Equity duplicates share the same MPESA ref)
   const seenMpesaRefs=new Set([
     ...transactions.map(t=>t.mpesaRef).filter(Boolean),
     ...transactions.map(t=>t.ref).filter(Boolean),
   ]);
-
-  // Split on Equity message boundaries — either "Your transaction" or "Confirmed. Payment" or "NAME has sent"
   const blocks=text.split(/(?=(?:Your transaction of|Confirmed\.\s+Payment of|[A-Z ]+has sent\s+KShs))/);
-
   for(const block of blocks){
     const b=block.trim();
     if(!b||b.length<20)continue;
-
-    // ── Type A: "Your transaction of Kshs. X has been credited to ACCOUNT NAME. Ref. EQA... MPESA Ref. UA..."
     const creditedMatch=b.match(/Your transaction of Kshs?\.\s*([\d,.]+)\s+has been credited to\s+[\d]+\s+(.+?)\.\s+Ref\.\s+([A-Z0-9]+).*?MPESA Ref\.\s+([A-Z0-9]+).*?on\s+([\d\-\/]+)\s+at\s+([\d:]+)/i);
     if(creditedMatch){
       const mpesaRef=creditedMatch[4];
-      // Skip if we already have this M-Pesa ref (dedup with Type B or M-Pesa)
       if(seenMpesaRefs.has(mpesaRef)||results.some(r=>r.mpesaRef===mpesaRef))continue;
       seenMpesaRefs.add(mpesaRef);
       const amount=parseFloat(creditedMatch[1].replace(/,/g,''));
       const rawName=creditedMatch[2].trim();
-      // Strip account number prefix if present
       const description=rawName.replace(/^\d+\s+/,'').trim()||'Equity Credit';
       const date=normDate(creditedMatch[5]);
       const time=norm24Time(creditedMatch[6]);
@@ -458,8 +590,6 @@ function parseEquityMessages(text){
       results.push({ref:eqRef,mpesaRef,description,amount,type:'credit',category:'Money Received',source:'Equity Bank',date,time,balance:null,txCost:0,autoRule:null,raw:rawSnippet});
       continue;
     }
-
-    // ── Type B: "NAME has sent KShs. X to your MPESA. The MPESA receipt number is UA... and transaction reference is EQA..."
     const sentToMpesaMatch=b.match(/([A-Z][A-Z ]+?)\s+has sent\s+KShs?\.\s*([\d,.]+)\s+to your\s+MPESA.*?receipt number is\s+([A-Z0-9]+).*?transaction reference is\s+([A-Z0-9]+)/i);
     if(sentToMpesaMatch){
       const mpesaRef=sentToMpesaMatch[3];
@@ -472,8 +602,6 @@ function parseEquityMessages(text){
       results.push({ref:eqRef,mpesaRef,description,amount,type:'credit',category:'Money Received',source:'Equity Bank',date:'',time:'',balance:null,txCost:0,autoRule:null,raw:rawSnippet});
       continue;
     }
-
-    // ── Type C: "Confirmed. Payment of KES. X to NAME Till No. NNNN has been received. Ref. UA... on DD-MM-YYYY at HH:MM."
     const tillMatch=b.match(/Confirmed\.\s+Payment of\s+KES?\.\s*([\d,.]+)\s+to\s+(.+?)\s+Till No\.\s*([\d]+)\s+has been received\.\s+Ref\.\s+([A-Z0-9]+)\s+on\s+([\d\-\/]+)\s+at\s+([\d:]+)/i);
     if(tillMatch){
       const ref=tillMatch[4];
@@ -491,9 +619,7 @@ function parseEquityMessages(text){
 }
 
 function parseAllMessages(text){
-  const mpesa=parseMpesaMessages(text);
-  const equity=parseEquityMessages(text);
-  return[...mpesa,...equity];
+  return[...parseMpesaMessages(text),...parseEquityMessages(text)];
 }
 
 // ── RULES ENGINE ──────────────────────────────────────────────────────────────
@@ -556,15 +682,15 @@ function setPeriod(mode,e){
   if(e)e.target.classList.add('active');
   document.getElementById('period-nav').style.display=mode==='range'?'none':'flex';
   document.getElementById('range-picker').style.display=mode==='range'?'block':'none';
-  if(mode!=='range')renderDashboard();
+  if(mode!=='range'){renderDashboard();renderStats();}
 }
-function shiftPeriod(dir){periodOffset+=dir;renderDashboard();}
+function shiftPeriod(dir){periodOffset+=dir;renderDashboard();renderStats();}
 function applyRange(){
   const f=document.getElementById('range-from').value;
   const t=document.getElementById('range-to').value;
   if(!f||!t){showError('Please select both dates.');return;}
   rangeFrom=new Date(f);rangeTo=new Date(t);
-  renderDashboard();
+  renderDashboard();renderStats();
 }
 
 function renderDashboard(){
@@ -575,7 +701,6 @@ function renderDashboard(){
   document.getElementById('dashboard-empty').style.display='none';
   document.getElementById('dashboard-content').style.display='block';
 
-  // Update period label
   if(periodMode!=='range'){
     const{label}=getPeriodBounds();
     document.getElementById('period-label').textContent=label;
@@ -603,15 +728,185 @@ function renderDashboard(){
   });
   const sorted=Object.entries(totals).sort((a,b)=>b[1]-a[1]);
   const max=sorted[0]?.[1]||1;
+  const catMap=getCatMap();
 
   document.getElementById('category-list').innerHTML=sorted.length?sorted.map(([cat,amt])=>{
     const pct=Math.round(amt/totalOut*100);
     const bar=Math.round(amt/max*100);
     const c=catMap[cat]||catMap['Other'];
-    return'<div class="cat-row"><div class="cat-top"><span class="cat-name">'+cat+'</span><span class="cat-amount">'+fmt(amt)+'</span></div>'
+    return'<div class="cat-row" onclick="openDrill(\''+escAttr(cat)+'\')">'
+      +'<div class="cat-top"><span class="cat-name">'+escHtml(cat)+'</span><span class="cat-amount">'+fmt(amt)+'</span></div>'
       +'<div class="cat-bar-wrap"><div class="cat-bar" style="width:'+bar+'%;background:'+c.bar+'"></div></div>'
-      +'<div class="cat-pct">'+pct+'% of categorised spending</div></div>';
+      +'<div class="cat-pct">'+pct+'% of categorised spending</div>'
+      +'<div class="cat-drill-hint">Tap to view details & trend →</div>'
+      +'</div>';
   }).join(''):'<div style="text-align:center;padding:1.5rem;color:#bbb;font-size:13px">No categorised spending in this period.</div>';
+}
+
+// ── CATEGORY DRILL-DOWN ───────────────────────────────────────────────────────
+function openDrill(cat){
+  const catMap=getCatMap();
+  const c=catMap[cat]||{bar:'#6b7280',bg:'#f3f4f6',color:'#374151',name:cat};
+  const catTxs=transactions.filter(t=>t.category===cat&&t.type==='debit').sort((a,b)=>{
+    const da=parseDate(a.date)||new Date(0);
+    const db=parseDate(b.date)||new Date(0);
+    return da-db;
+  });
+
+  document.getElementById('drill-title').textContent=cat;
+  const total=catTxs.reduce((s,t)=>s+t.amount,0);
+  document.getElementById('drill-sub').textContent=fmt(total)+' total · '+catTxs.length+' transaction'+(catTxs.length!==1?'s':'');
+
+  // Build time-series: group by month
+  const byMonth={};
+  catTxs.forEach(t=>{
+    const d=parseDate(t.date);
+    if(!d)return;
+    const key=d.getFullYear()+'-'+(d.getMonth()+1).toString().padStart(2,'0');
+    byMonth[key]=(byMonth[key]||0)+t.amount;
+  });
+  const months=Object.keys(byMonth).sort();
+  const labels=months.map(m=>{
+    const[y,mo]=m.split('-');
+    return new Date(+y,+mo-1,1).toLocaleDateString('en-KE',{month:'short',year:'2-digit'});
+  });
+  const data=months.map(m=>byMonth[m]);
+
+  if(drillChartInst){drillChartInst.destroy();drillChartInst=null;}
+  const ctx=document.getElementById('drill-chart').getContext('2d');
+  drillChartInst=new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:labels.length?labels:['No data'],
+      datasets:[{
+        label:cat,
+        data:data.length?data:[0],
+        backgroundColor:c.bar+'cc',
+        borderColor:c.bar,
+        borderWidth:1,
+        borderRadius:4,
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx2=>'Ksh '+ctx2.raw.toLocaleString('en-KE')}}},
+      scales:{y:{ticks:{callback:v=>'Ksh '+v.toLocaleString('en-KE')},grid:{color:'#f0efeb'}},x:{grid:{display:false}}}
+    }
+  });
+
+  // List transactions
+  const listHtml=catTxs.length?[...catTxs].reverse().map(t=>{
+    const dt=[t.date,t.time].filter(Boolean).join(' ');
+    return'<div class="drill-tx-item">'
+      +'<div><div class="drill-tx-name">'+escHtml(t.description)+'</div><div class="drill-tx-date">'+escHtml(dt)+'</div></div>'
+      +'<div class="drill-tx-amt">-'+fmt(t.amount)+'</div>'
+      +'</div>';
+  }).join(''):'<div style="text-align:center;padding:1rem;color:#bbb;font-size:13px">No transactions.</div>';
+  document.getElementById('drill-tx-list').innerHTML=listHtml;
+
+  document.getElementById('drill-modal').classList.add('open');
+}
+function closeDrill(){document.getElementById('drill-modal').classList.remove('open');}
+function closeDrillOutside(e){if(e.target===document.getElementById('drill-modal'))closeDrill();}
+
+// ── STATISTICS ────────────────────────────────────────────────────────────────
+function renderStats(){
+  if(!transactions.length){
+    document.getElementById('stats-empty').style.display='block';
+    document.getElementById('stats-content').style.display='none';return;
+  }
+  document.getElementById('stats-empty').style.display='none';
+  document.getElementById('stats-content').style.display='block';
+
+  const filtered=filterByPeriod(transactions);
+  const debits=filtered.filter(t=>t.type==='debit');
+  const credits=filtered.filter(t=>t.type==='credit');
+  const catMap=getCatMap();
+
+  // Income by category
+  const incomeMap={};
+  credits.forEach(t=>{
+    const k=t.category==='Uncategorised'?'Other':t.category;
+    incomeMap[k]=(incomeMap[k]||0)+t.amount;
+  });
+  const totalIn=credits.reduce((s,t)=>s+t.amount,0);
+  document.getElementById('stats-total-in').textContent=fmt(totalIn);
+
+  // Expense by category
+  const expenseMap={};
+  debits.forEach(t=>{
+    const k=t.category==='Uncategorised'?'Other':t.category;
+    expenseMap[k]=(expenseMap[k]||0)+t.amount;
+  });
+  const totalOut=debits.reduce((s,t)=>s+t.amount,0);
+  document.getElementById('stats-total-out').textContent=fmt(totalOut);
+
+  renderPieChart('chart-income', incomeMap, totalIn, catMap, 'income');
+  renderPieChart('chart-expense', expenseMap, totalOut, catMap, 'expense');
+  renderStatsList('stats-income-list', incomeMap, totalIn, catMap);
+  renderStatsList('stats-expense-list', expenseMap, totalOut, catMap);
+}
+
+function renderPieChart(canvasId, dataMap, total, catMap, which){
+  const entries=Object.entries(dataMap).sort((a,b)=>b[1]-a[1]);
+  const labels=entries.map(([k])=>k);
+  const data=entries.map(([,v])=>v);
+  const colors=entries.map(([k])=>(catMap[k]||catMap['Other']||{bar:'#6b7280'}).bar);
+
+  if(which==='income'&&incomeChartInst){incomeChartInst.destroy();incomeChartInst=null;}
+  if(which==='expense'&&expenseChartInst){expenseChartInst.destroy();expenseChartInst=null;}
+
+  if(!data.length){
+    const canvas=document.getElementById(canvasId);
+    const ctx=canvas.getContext('2d');
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    // Draw empty state text
+    ctx.fillStyle='#ccc';ctx.font='13px sans-serif';ctx.textAlign='center';
+    canvas.width=260;canvas.height=50;
+    ctx.fillText('No data for this period',130,30);
+    return;
+  }
+
+  const ctx=document.getElementById(canvasId).getContext('2d');
+  const inst=new Chart(ctx,{
+    type:'doughnut',
+    data:{
+      labels,
+      datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#fff',hoverOffset:6}]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:true,cutout:'60%',
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:ctx2=>{
+          const pct=total?Math.round(ctx2.raw/total*100):0;
+          return ctx2.label+': '+fmt(ctx2.raw)+' ('+pct+'%)';
+        }}}
+      }
+    }
+  });
+  if(which==='income')incomeChartInst=inst;
+  else expenseChartInst=inst;
+}
+
+function renderStatsList(containerId, dataMap, total, catMap){
+  const entries=Object.entries(dataMap).sort((a,b)=>b[1]-a[1]);
+  const isExpense=containerId.includes('expense');
+  const el=document.getElementById(containerId);
+  if(!entries.length){
+    el.innerHTML='<div style="text-align:center;padding:1rem;color:#bbb;font-size:13px">No data for this period.</div>';
+    return;
+  }
+  el.innerHTML=entries.map(([cat,amt])=>{
+    const c=catMap[cat]||catMap['Other']||{bar:'#6b7280',color:'#374151'};
+    const pct=total?Math.round(amt/total*100):0;
+    return'<div class="stats-list-item">'
+      +'<div class="stats-dot" style="background:'+c.bar+'"></div>'
+      +'<div class="stats-name">'+escHtml(cat)+'</div>'
+      +'<div class="stats-pct">'+pct+'%</div>'
+      +'<div class="stats-amt" style="color:'+(isExpense?'#b91c1c':'#15803d')+'">'+fmt(amt)+'</div>'
+      +'</div>';
+  }).join('');
 }
 
 // ── TRANSACTIONS ──────────────────────────────────────────────────────────────
@@ -620,6 +915,57 @@ function setFilter(cat,e){
   document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
   if(e)e.target.classList.add('active');
   renderTransactions();
+}
+
+function setSort(mode){
+  currentSort=mode;
+  document.querySelectorAll('.sort-option').forEach(o=>o.classList.remove('active'));
+  const el=document.getElementById('sort-opt-'+mode);
+  if(el)el.classList.add('active');
+  const sortBtn=document.getElementById('sort-toggle-btn');
+  if(sortBtn)sortBtn.classList.add('active');
+  closeSortMenu();
+  renderTransactions();
+}
+
+function toggleSortMenu(){
+  sortMenuOpen=!sortMenuOpen;
+  document.getElementById('sort-menu').style.display=sortMenuOpen?'block':'none';
+}
+function closeSortMenu(){
+  sortMenuOpen=false;
+  document.getElementById('sort-menu').style.display='none';
+}
+
+document.addEventListener('click',function(e){
+  if(sortMenuOpen&&!e.target.closest('.tx-sort-wrap'))closeSortMenu();
+});
+
+function renderFilterBar(){
+  const bar=document.getElementById('filter-bar');
+  const allCats=CATS.map(c=>c.name);
+  const chips=[
+    {label:'All',value:'All'},
+    {label:'⚠ Uncat.',value:'Uncategorised'},
+    ...CATS.filter(c=>c.name!=='Uncategorised').map(c=>({label:c.name,value:c.name}))
+  ];
+  bar.innerHTML=chips.map(ch=>{
+    const active=activeFilter===ch.value?' active':'';
+    return'<button class="filter-chip'+active+'" onclick="setFilter(\''+escAttr(ch.value)+'\',event)">'+escHtml(ch.label)+'</button>';
+  }).join('');
+}
+
+function getSortedTransactions(list){
+  const indexed=list.map((t,i)=>({...t,_origIdx:i}));
+  if(currentSort==='newest'){return indexed.slice().reverse();}
+  if(currentSort==='oldest'){return indexed.slice();}
+  if(currentSort==='highest'){return indexed.slice().sort((a,b)=>b.amount-a.amount);}
+  if(currentSort==='lowest'){return indexed.slice().sort((a,b)=>a.amount-b.amount);}
+  return indexed.slice().reverse();
+}
+
+function getSearchQuery(){
+  return (document.getElementById('tx-search')||{value:''}).value.trim().toLowerCase();
 }
 
 function togglePreview(idx){
@@ -632,15 +978,35 @@ function togglePreview(idx){
 }
 
 function renderTransactions(){
+  renderFilterBar();
   const el=document.getElementById('tx-list');
   const empty=document.getElementById('tx-empty');
-  const list=(activeFilter==='All'?transactions:transactions.filter(t=>t.category===activeFilter))
-    .map(t=>({...t,_idx:transactions.indexOf(t)}))
-    .sort((a,b)=>b._idx-a._idx);
+  const query=getSearchQuery();
+  const catMap=getCatMap();
+
+  let base=transactions.map((t,i)=>({...t,_idx:i}));
+
+  // Filter by category
+  if(activeFilter!=='All')base=base.filter(t=>t.category===activeFilter);
+
+  // Search filter
+  if(query){
+    base=base.filter(t=>{
+      return (t.description||'').toLowerCase().includes(query)
+        ||(t.category||'').toLowerCase().includes(query)
+        ||(t.date||'').toLowerCase().includes(query)
+        ||(t.ref||'').toLowerCase().includes(query)
+        ||String(t.amount).includes(query);
+    });
+  }
+
+  const list=getSortedTransactions(base);
+
   if(!list.length){empty.style.display='block';el.innerHTML='';return;}
   empty.style.display='none';
+
   el.innerHTML=list.map(t=>{
-    const c=catMap[t.category]||catMap['Uncategorised'];
+    const c=catMap[t.category]||catMap['Uncategorised']||{bg:'#fef3c7',color:'#92400e'};
     const sign=t.type==='debit'?'-':'+';
     const dt=[t.date,t.time].filter(Boolean).join(' ');
     const cls=t.category==='Uncategorised'?'uncategorised':t.autoRule?'auto-ruled':'';
@@ -652,14 +1018,14 @@ function renderTransactions(){
       +'<div class="sms-preview" id="preview-'+t._idx+'"><div class="sms-text">'+escHtml(t.raw)+'</div></div>':'';
     const srcColor=t.source==='Equity Bank'?'#b45309':'#0369a1';
     const srcBg=t.source==='Equity Bank'?'#fef3c7':'#e0f2fe';
-    const srcBadge='<span class="badge" style="background:'+srcBg+';color:'+srcColor+'">'+t.source+'</span>';
+    const srcBadge='<span class="badge" style="background:'+srcBg+';color:'+srcColor+'">'+escHtml(t.source)+'</span>';
     return'<div class="tx-card '+cls+'" onclick="openModal('+t._idx+')">'
       +'<div class="tx-top"><div class="tx-desc">'+escHtml(t.description)+'</div><div class="tx-amount '+t.type+'">'+sign+fmt(t.amount)+'</div></div>'
       +'<div class="tx-meta">'
-      +'<span class="badge" style="background:'+c.bg+';color:'+c.color+'">'+t.category+'</span>'
+      +'<span class="badge" style="background:'+c.bg+';color:'+c.color+'">'+escHtml(t.category)+'</span>'
       +srcBadge
-      +(dt?'<span class="tx-info">'+dt+'</span>':'')
-      +(t.ref?'<span class="tx-info">'+t.ref+'</span>':'')
+      +(dt?'<span class="tx-info">'+escHtml(dt)+'</span>':'')
+      +(t.ref?'<span class="tx-info">'+escHtml(t.ref)+'</span>':'')
       +costL
       +'</div>'
       +autoL
@@ -668,18 +1034,14 @@ function renderTransactions(){
       +'</div>';
   }).join('');
 
-  // Prevent preview toggle from opening modal
   document.querySelectorAll('.preview-toggle').forEach(el=>{
     el.addEventListener('click',e=>e.stopPropagation());
   });
 }
 
-function escHtml(s){
-  return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
 // ── RULES TAB ─────────────────────────────────────────────────────────────────
 function renderRules(){
+  const catMap=getCatMap();
   const keys=Object.keys(nameRules);
   document.getElementById('rules-count').textContent=keys.length+' rule'+(keys.length!==1?'s':'');
   const empty=document.getElementById('rules-empty');
@@ -687,12 +1049,12 @@ function renderRules(){
   if(!keys.length){empty.style.display='block';list.innerHTML='';return;}
   empty.style.display='none';
   list.innerHTML=keys.sort().map(name=>{
-    const cat=nameRules[name];const c=catMap[cat]||catMap['Other'];
+    const cat=nameRules[name];const c=catMap[cat]||catMap['Other']||{bg:'#f3f4f6',color:'#374151'};
     const cnt=transactions.filter(t=>(t.description||'').trim().toUpperCase()===name).length;
     return'<div class="rule-card"><div class="rule-left"><div class="rule-name">'+escHtml(name)+'</div>'
-      +'<div class="rule-detail"><span class="badge" style="background:'+c.bg+';color:'+c.color+';font-size:10px">'+cat+'</span>'
+      +'<div class="rule-detail"><span class="badge" style="background:'+c.bg+';color:'+c.color+';font-size:10px">'+escHtml(cat)+'</span>'
       +'<span style="font-size:12px;color:#bbb">'+cnt+' transaction'+(cnt!==1?'s':'')+'</span></div></div>'
-      +'<button class="rule-delete" onclick="deleteRule(event,\''+name.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')" >Remove</button></div>';
+      +'<button class="rule-delete" onclick="deleteRule(event,\''+escAttr(name)+'\')" >Remove</button></div>';
   }).join('');
 }
 
@@ -700,22 +1062,21 @@ function renderRules(){
 function openModal(idx){
   editingIndex=idx;
   const tx=transactions[idx];
+  const catMap=getCatMap();
   const key=(tx.description||'').trim().toUpperCase();
   const others=transactions.filter((_,i)=>i!==idx&&(transactions[i].description||'').trim().toUpperCase()===key).length;
   document.getElementById('modal-title').textContent=tx.description;
   document.getElementById('modal-sub').textContent=(tx.type==='debit'?'-':'+')+fmt(tx.amount)+(tx.date?' · '+tx.date:'')+(tx.time?' '+tx.time:'');
-  // Show SMS in modal too
   const smsEl=document.getElementById('modal-sms');
   if(tx.raw){smsEl.textContent=tx.raw;smsEl.style.display='block';}else{smsEl.style.display='none';}
   document.getElementById('modal-note').textContent=others>0
     ?others+' other transaction'+(others!==1?'s':'')+' share this name — your choice applies to all and saves a rule.'
     :'No other transactions with this name yet. Your choice saves a rule for future imports.';
-  document.getElementById('modal-grid').innerHTML=CATS
-    .filter(c=>c.name!=='Uncategorised').concat([catMap['Uncategorised']])
-    .map(c=>{
-      const sel=tx.category===c.name;
-      return'<button class="cat-btn'+(sel?' selected':'')+'" style="background:'+(sel?c.bg:'#fff')+';color:'+c.color+';border-color:'+(sel?c.bar:'#e0ddd6')+'" onclick="setCategory(\''+c.name+'\')">'+c.name+'</button>';
-    }).join('');
+  const displayCats=CATS.filter(c=>c.name!=='Uncategorised').concat([getUncatEntry()]);
+  document.getElementById('modal-grid').innerHTML=displayCats.map(c=>{
+    const sel=tx.category===c.name;
+    return'<button class="cat-btn'+(sel?' selected':'')+'" style="background:'+(sel?c.bg:'#fff')+';color:'+c.color+';border-color:'+(sel?c.bar:'#e0ddd6')+'" onclick="setCategory(\''+escAttr(c.name)+'\')">'+escHtml(c.name)+'</button>';
+  }).join('');
   document.getElementById('modal').classList.add('open');
 }
 
@@ -740,17 +1101,136 @@ function deleteRule(e,name){
   delete nameRules[name];saveRules();renderRules();
 }
 
+// ── CATEGORIES MANAGEMENT ─────────────────────────────────────────────────────
+function renderCategories(){
+  const list=document.getElementById('cat-manage-list');
+  list.innerHTML=CATS.map((c,i)=>{
+    const isSystem=c.name==='Uncategorised';
+    return'<div class="cat-manage-row" id="cat-row-'+i+'">'
+      +'<div class="cat-color-dot" style="background:'+c.bar+'"></div>'
+      +'<div class="cat-manage-name" id="cat-name-'+i+'">'+escHtml(c.name)+'</div>'
+      +'<div style="display:flex;gap:6px;flex-shrink:0">'
+      +'<button class="cat-edit-btn" onclick="startEditCat('+i+')">Rename</button>'
+      +(isSystem?'':'<button class="cat-del-btn" onclick="deleteCat('+i+')">Delete</button>')
+      +'</div>'
+      +'</div>';
+  }).join('');
+}
+
+function startEditCat(i){
+  const row=document.getElementById('cat-row-'+i);
+  const oldName=CATS[i].name;
+  // Replace the name div with an inline edit
+  const nameDiv=document.getElementById('cat-name-'+i);
+  nameDiv.outerHTML='<div class="inline-edit" id="cat-edit-'+i+'">'
+    +'<input type="text" id="cat-edit-input-'+i+'" value="'+escAttr(oldName)+'" maxlength="40">'
+    +'<button class="inline-save" onclick="saveCatRename('+i+')">Save</button>'
+    +'<button class="inline-cancel" onclick="renderCategories()">✕</button>'
+    +'</div>';
+  const inp=document.getElementById('cat-edit-input-'+i);
+  if(inp){inp.focus();inp.select();}
+}
+
+function saveCatRename(i){
+  const inp=document.getElementById('cat-edit-input-'+i);
+  if(!inp)return;
+  const newName=inp.value.trim();
+  if(!newName){alert('Category name cannot be empty.');return;}
+  if(CATS.some((c,j)=>j!==i&&c.name.toLowerCase()===newName.toLowerCase())){
+    alert('A category with that name already exists.');return;
+  }
+  const oldName=CATS[i].name;
+  CATS[i]={...CATS[i],name:newName};
+  saveCats();
+  // Update all transactions
+  transactions=transactions.map(t=>t.category===oldName?{...t,category:newName}:t);
+  save();
+  // Update rules
+  const updatedRules={};
+  Object.entries(nameRules).forEach(([k,v])=>{updatedRules[k]=v===oldName?newName:v;});
+  nameRules=updatedRules;
+  saveRules();
+  renderAll();
+}
+
+function deleteCat(i){
+  const cat=CATS[i];
+  if(cat.name==='Uncategorised'){alert('Cannot delete the Uncategorised category.');return;}
+  const count=transactions.filter(t=>t.category===cat.name).length;
+  const msg=count>0
+    ?'Delete "'+cat.name+'"? '+count+' transaction'+(count!==1?'s':'')+' will be moved to Uncategorised.'
+    :'Delete "'+cat.name+'"?';
+  if(!confirm(msg))return;
+  CATS.splice(i,1);
+  saveCats();
+  transactions=transactions.map(t=>t.category===cat.name?{...t,category:'Uncategorised'}:t);
+  save();
+  // Remove rules pointing to deleted cat
+  const updatedRules={};
+  Object.entries(nameRules).forEach(([k,v])=>{if(v!==cat.name)updatedRules[k]=v;});
+  nameRules=updatedRules;
+  saveRules();
+  renderAll();
+}
+
+function addCategory(){
+  const inp=document.getElementById('new-cat-name');
+  const name=(inp.value||'').trim();
+  if(!name){alert('Please enter a category name.');return;}
+  if(CATS.some(c=>c.name.toLowerCase()===name.toLowerCase())){
+    alert('A category with that name already exists.');return;
+  }
+  const colorIdx=Math.floor(Math.random()*EXTRA_COLORS.length);
+  const col=EXTRA_COLORS[colorIdx];
+  // Insert before Uncategorised
+  const uncatIdx=CATS.findIndex(c=>c.name==='Uncategorised');
+  const newCat={name,color:col.color,bg:col.bg,bar:col.bar};
+  if(uncatIdx>=0)CATS.splice(uncatIdx,0,newCat);
+  else CATS.push(newCat);
+  saveCats();
+  inp.value='';
+  renderAll();
+}
+
+// ── SCROLL FABs ───────────────────────────────────────────────────────────────
+function updateFabs(){
+  const isTx=document.getElementById('tab-transactions').classList.contains('active');
+  const fabGroup=document.getElementById('fab-group');
+  fabGroup.style.display=isTx?'flex':'none';
+  if(!isTx)return;
+  const scrollY=window.scrollY||document.documentElement.scrollTop;
+  const maxScroll=document.documentElement.scrollHeight-window.innerHeight;
+  document.getElementById('fab-top').classList.toggle('visible',scrollY>200);
+  document.getElementById('fab-bottom').classList.toggle('visible',scrollY<maxScroll-100);
+}
+function scrollToTop(){window.scrollTo({top:0,behavior:'smooth'});}
+function scrollToBottom(){window.scrollTo({top:document.documentElement.scrollHeight,behavior:'smooth'});}
+window.addEventListener('scroll',updateFabs,{passive:true});
+
 // ── UTILS ─────────────────────────────────────────────────────────────────────
 function fmt(n){return'Ksh '+Number(n).toLocaleString('en-KE',{minimumFractionDigits:0,maximumFractionDigits:0});}
+function escHtml(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function escAttr(s){return(s||'').replace(/'/g,'&#39;').replace(/"/g,'&quot;');}
 
-function renderAll(){updateBadge();renderDashboard();renderTransactions();renderRules();}
+function renderAll(){
+  updateBadge();
+  renderDashboard();
+  renderStats();
+  renderTransactions();
+  renderRules();
+  renderCategories();
+  updateFabs();
+}
 
 function switchTab(tab){
-  const tabs=['input','dashboard','transactions','rules'];
+  const tabs=['input','dashboard','statistics','transactions','rules','categories'];
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',tabs[i]===tab));
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.getElementById('tab-'+tab).classList.add('active');
   if(tab==='dashboard')renderDashboard();
+  if(tab==='statistics')renderStats();
+  if(tab==='transactions')renderTransactions();
+  updateFabs();
 }
 
 function updateBadge(){
@@ -761,9 +1241,12 @@ function updateBadge(){
 }
 
 function clearAll(){
-  if(!confirm('Delete ALL transactions? Your rules will be kept.'))return;
-  transactions=[];save();renderAll();
-  showResult('All transactions cleared. Rules are still saved.');
+  if(!confirm('Delete ALL transactions, rules and category customisations? This cannot be undone.'))return;
+  transactions=[];save();
+  nameRules={};saveRules();
+  CATS=DEFAULT_CATS.map(c=>({...c}));saveCats();
+  renderAll();
+  showResult('All data cleared.');
 }
 
 function showResult(msg){document.getElementById('parse-result').textContent=msg;document.getElementById('parse-result').style.display='block';document.getElementById('parse-error').style.display='none';}
