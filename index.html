@@ -318,7 +318,7 @@ UCE9Q9DAVM Confirmed. Ksh40.00 paid to BRILLIANT UNITED BARAKA SHOP via Kopo Kop
     </div>
     <div class="period-nav" id="period-nav">
       <button onclick="shiftPeriod(-1)">&#8249;</button>
-      <span class="period-label" id="period-label">—</span>
+      <span class="period-label" id="period-label" onclick="viewTransactionsForPeriod()" style="cursor:pointer; display:flex; align-items:center; gap:6px; padding:4px 8px; border-radius:8px; transition:background 0.2s;" onmouseover="this.style.background='var(--surface-lighter)'" onmouseout="this.style.background='transparent'" title="Tap to view transactions for this period">—</span>
       <button onclick="shiftPeriod(1)">&#8250;</button>
     </div>
     <div id="range-picker" style="display:none">
@@ -361,6 +361,25 @@ UCE9Q9DAVM Confirmed. Ksh40.00 paid to BRILLIANT UNITED BARAKA SHOP via Kopo Kop
     No transactions yet.<br>Go to Add SMS to get started.
   </div>
   <div id="breakdown-content" style="display:none">
+    <div class="period-tabs" style="margin-bottom:8px">
+      <button class="period-tab" onclick="setBreakdownPeriod('day',event)">Day</button>
+      <button class="period-tab" onclick="setBreakdownPeriod('week',event)">Week</button>
+      <button class="period-tab active" onclick="setBreakdownPeriod('month',event)">Month</button>
+      <button class="period-tab" onclick="setBreakdownPeriod('range',event)">Custom</button>
+    </div>
+    <div class="period-nav" id="bd-period-nav">
+      <button onclick="shiftBreakdownPeriod(-1)">&#8249;</button>
+      <span class="period-label" id="bd-period-label" onclick="viewTransactionsForBreakdownPeriod()" style="cursor:pointer; display:flex; align-items:center; gap:6px; padding:4px 8px; border-radius:8px; transition:background 0.2s;" onmouseover="this.style.background='var(--surface-lighter)'" onmouseout="this.style.background='transparent'" title="Tap to view transactions for this period">—</span>
+      <button onclick="shiftBreakdownPeriod(1)">&#8250;</button>
+    </div>
+    <div id="bd-range-picker" style="display:none">
+      <div class="date-range-row">
+        <input type="date" id="bd-range-from">
+        <span style="font-size:13px;color:#888">to</span>
+        <input type="date" id="bd-range-to">
+        <button onclick="applyBreakdownRange()">Go</button>
+      </div>
+    </div>
     <div class="sub-tab-bar">
       <button class="sub-tab active" id="sub-expenses-btn" onclick="setSubTab('expenses')">💸 Expenses</button>
       <button class="sub-tab" id="sub-income-btn" onclick="setSubTab('income')">💰 Income</button>
@@ -548,6 +567,10 @@ let periodOffset=0;
 let rangeFrom=null, rangeTo=null;
 let manualType='debit';
 let activeSubTab='expenses';
+let activeDateRange=null;
+let breakdownPeriodMode='month';
+let breakdownPeriodOffset=0;
+let breakdownRangeFrom=null, breakdownRangeTo=null;
 
 // Safe localStorage load
 function safeLoad(key,fallback){
@@ -614,8 +637,13 @@ function startOfMonth(d){return new Date(d.getFullYear(),d.getMonth(),1);}
 
 function getPeriodBounds(){
   const now=new Date();
-  if(periodMode==='range'&&rangeFrom&&rangeTo)
-    return{from:rangeFrom,to:new Date(rangeTo.getTime()+86399999),label:'Custom range'};
+  if(periodMode==='range'){
+    if(rangeFrom&&rangeTo){
+      return{from:rangeFrom,to:new Date(rangeTo.getTime()+86399999),label:rangeFrom.toLocaleDateString('en-KE',{day:'numeric',month:'short',year:'numeric'})+' – '+rangeTo.toLocaleDateString('en-KE',{day:'numeric',month:'short',year:'numeric'})};
+    } else {
+      return{from:new Date(0),to:new Date(),label:'Custom range'};
+    }
+  }
   if(periodMode==='day'){
     const d=startOfDay(now);d.setDate(d.getDate()+periodOffset);
     return{from:d,to:new Date(d.getTime()+86399999),label:d.toLocaleDateString('en-KE',{weekday:'short',day:'numeric',month:'short',year:'numeric'})};
@@ -794,7 +822,7 @@ function addManual(){
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
 function setPeriod(mode,e){
   periodMode=mode;periodOffset=0;
-  document.querySelectorAll('.period-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('#tab-dashboard .period-tab').forEach(t=>t.classList.remove('active'));
   if(e)e.target.classList.add('active');
   document.getElementById('period-nav').style.display=mode==='range'?'none':'flex';
   document.getElementById('range-picker').style.display=mode==='range'?'block':'none';
@@ -916,11 +944,9 @@ function renderDashboard(){
   document.getElementById('calendar-view').style.display='none';
 
   if(periodMode!=='range'){
-    document.getElementById('period-label').textContent=getPeriodBounds().label;
+    document.getElementById('period-label').innerHTML='<span>'+getPeriodBounds().label+'</span><span style="font-size:12px;opacity:0.6;">👁</span>';
   }else if(rangeFrom&&rangeTo){
-    document.getElementById('period-label').textContent=
-      rangeFrom.toLocaleDateString('en-KE',{day:'numeric',month:'short',year:'numeric'})+
-      ' – '+rangeTo.toLocaleDateString('en-KE',{day:'numeric',month:'short',year:'numeric'});
+    document.getElementById('period-label').innerHTML='<span>'+getPeriodBounds().label+'</span><span style="font-size:12px;opacity:0.6;">👁</span>';
   }
   const filtered=filterByPeriod(transactions);
   const debits=filtered.filter(t=>t.type==='debit');
@@ -966,7 +992,7 @@ function renderDashboard(){
         +'<span class="budget-label'+(over?' over':'')+'">'+bpct+'%'+(over?' ⚠':'')+'</span>'
         +'</div>';
     }
-    return'<div class="cat-row" onclick="goFilterCat(\''+cat+'\')">'
+    return'<div class="cat-row" onclick="viewTransactionsForPeriod(\''+cat+'\')">'
       +'<div class="cat-top"><span class="cat-name">'+cat+'</span><span class="cat-amount">'+fmt(amt)+'</span></div>'
       +'<div class="cat-bar-wrap"><div class="cat-bar" style="width:'+bar+'%;background:'+c.bar+'"></div></div>'
       +'<div class="cat-pct">'+pct+'% of categorised spending</div>'
@@ -975,7 +1001,23 @@ function renderDashboard(){
   }).join(''):'<div style="text-align:center;padding:1.5rem;color:#bbb;font-size:13px">No categorised spending in this period.</div>';
 }
 
+function viewTransactionsForPeriod(cat = null){
+  activeDateRange = getPeriodBounds();
+  if(cat) activeFilter = cat;
+  buildFilterBar();
+  renderTransactions();
+  switchTab('transactions');
+}
+
+function clearDateFilter(e){
+  if(e) e.stopPropagation();
+  activeDateRange = null;
+  buildFilterBar();
+  renderTransactions();
+}
+
 function goFilterCat(cat){
+  activeDateRange = null;
   activeFilter=cat;
   buildFilterBar();
   renderTransactions();
@@ -991,7 +1033,7 @@ function setSubTab(tab){
   document.getElementById('breakdown-income').style.display=tab==='income'?'block':'none';
 }
 
-function drawPie(svgId,legendId,listId,slices,total){
+function drawPie(svgId,legendId,listId,slices,total, filteredTxs){
   const svg=document.getElementById(svgId);
   const legend=document.getElementById(legendId);
   const list=document.getElementById(listId);
@@ -1027,11 +1069,11 @@ function drawPie(svgId,legendId,listId,slices,total){
 
   list.innerHTML=slices.map(s=>{
     const c=catMap[s.name]||catMap['Other'];
-    const txs=transactions.filter(t=>t.category===s.name);
-    return'<div class="cat-row" onclick="goFilterCat(\''+s.name+'\')">'
+    const txCount=filteredTxs.filter(t=>t.category===s.name).length;
+    return'<div class="cat-row" onclick="viewTransactionsForBreakdownPeriod(\''+s.name+'\')">'
       +'<div class="cat-top"><span class="cat-name">'+s.name+'</span><span class="cat-amount">'+fmt(s.value)+'</span></div>'
       +'<div class="cat-bar-wrap"><div class="cat-bar" style="width:'+Math.round(s.value/total*100)+'%;background:'+c.bar+'"></div></div>'
-      +'<div class="cat-pct">'+txs.length+' transaction'+(txs.length!==1?'s':'')+' · tap to view</div>'
+      +'<div class="cat-pct">'+txCount+' transaction'+(txCount!==1?'s':'')+' · tap to view</div>'
       +'</div>';
   }).join('');
 }
@@ -1044,23 +1086,90 @@ function renderBreakdown(){
   document.getElementById('breakdown-empty').style.display='none';
   document.getElementById('breakdown-content').style.display='block';
 
+  if(breakdownPeriodMode!=='range'){
+    document.getElementById('bd-period-label').innerHTML='<span>'+getBreakdownPeriodBounds().label+'</span><span style="font-size:12px;opacity:0.6;margin-left:8px;">👁</span>';
+  }else if(breakdownRangeFrom&&breakdownRangeTo){
+    document.getElementById('bd-period-label').innerHTML='<span>'+getBreakdownPeriodBounds().label+'</span><span style="font-size:12px;opacity:0.6;margin-left:8px;">👁</span>';
+  }else{
+    document.getElementById('bd-period-label').textContent='Select a range';
+  }
+
+  const filtered = filterByBreakdownPeriod(transactions);
+
   // Expenses
   const expTotals={};
-  transactions.filter(t=>t.type==='debit').forEach(t=>{
+  filtered.filter(t=>t.type==='debit').forEach(t=>{
     if(t.category!=='Uncategorised')expTotals[t.category]=(expTotals[t.category]||0)+t.amount;
   });
   const expTotal=Object.values(expTotals).reduce((a,b)=>a+b,0)||1;
   const expSlices=Object.entries(expTotals).sort((a,b)=>b[1]-a[1]).map(([name,value])=>({name,value,color:(catMap[name]||catMap['Other']).bar}));
-  drawPie('pie-expenses','legend-expenses','breakdown-expense-list',expSlices,expTotal);
+  drawPie('pie-expenses','legend-expenses','breakdown-expense-list',expSlices,expTotal, filtered);
 
   // Income
   const incTotals={};
-  transactions.filter(t=>t.type==='credit').forEach(t=>{
+  filtered.filter(t=>t.type==='credit').forEach(t=>{
     incTotals[t.category]=(incTotals[t.category]||0)+t.amount;
   });
   const incTotal=Object.values(incTotals).reduce((a,b)=>a+b,0)||1;
   const incSlices=Object.entries(incTotals).sort((a,b)=>b[1]-a[1]).map(([name,value])=>({name,value,color:(catMap[name]||catMap['Other']).bar}));
-  drawPie('pie-income','legend-income','breakdown-income-list',incSlices,incTotal);
+  drawPie('pie-income','legend-income','breakdown-income-list',incSlices,incTotal, filtered);
+}
+
+function getBreakdownPeriodBounds(){
+  const now=new Date();
+  if(breakdownPeriodMode==='range'){
+    if(breakdownRangeFrom&&breakdownRangeTo){
+      return{from:breakdownRangeFrom,to:new Date(breakdownRangeTo.getTime()+86399999),label:breakdownRangeFrom.toLocaleDateString('en-KE',{day:'numeric',month:'short',year:'numeric'})+' – '+breakdownRangeTo.toLocaleDateString('en-KE',{day:'numeric',month:'short',year:'numeric'})};
+    } else {
+      return{from:new Date(0),to:new Date(),label:'Custom range'};
+    }
+  }
+  if(breakdownPeriodMode==='day'){
+    const d=startOfDay(now);d.setDate(d.getDate()+breakdownPeriodOffset);
+    return{from:d,to:new Date(d.getTime()+86399999),label:d.toLocaleDateString('en-KE',{weekday:'short',day:'numeric',month:'short',year:'numeric'})};
+  }
+  if(breakdownPeriodMode==='week'){
+    const w=startOfWeek(now);w.setDate(w.getDate()+breakdownPeriodOffset*7);
+    const end=new Date(w.getTime()+7*86400000-1);
+    const o={day:'numeric',month:'short'};
+    return{from:w,to:end,label:w.toLocaleDateString('en-KE',o)+' – '+end.toLocaleDateString('en-KE',o)};
+  }
+  const m=startOfMonth(now);m.setMonth(m.getMonth()+breakdownPeriodOffset);
+  const end=new Date(m.getFullYear(),m.getMonth()+1,0,23,59,59);
+  return{from:m,to:end,label:m.toLocaleDateString('en-KE',{month:'long',year:'numeric'})};
+}
+
+function filterByBreakdownPeriod(txs){
+  if(breakdownPeriodMode==='range'&&(!breakdownRangeFrom||!breakdownRangeTo))return txs;
+  const{from,to}=getBreakdownPeriodBounds();
+  return txs.filter(t=>{const d=parseDate(t.date);return d&&d>=from&&d<=to;});
+}
+
+function setBreakdownPeriod(mode,e){
+  breakdownPeriodMode=mode;breakdownPeriodOffset=0;
+  document.querySelectorAll('#tab-breakdown .period-tab').forEach(t=>t.classList.remove('active'));
+  if(e)e.target.classList.add('active');
+  document.getElementById('bd-period-nav').style.display=mode==='range'?'none':'flex';
+  document.getElementById('bd-range-picker').style.display=mode==='range'?'block':'none';
+  if(mode!=='range')renderBreakdown();
+}
+
+function shiftBreakdownPeriod(dir){breakdownPeriodOffset+=dir;renderBreakdown();}
+
+function applyBreakdownRange(){
+  const f=document.getElementById('bd-range-from').value;
+  const t=document.getElementById('bd-range-to').value;
+  if(!f||!t){showError('Please select both dates.');return;}
+  breakdownRangeFrom=new Date(f);breakdownRangeTo=new Date(t);
+  renderBreakdown();
+}
+
+function viewTransactionsForBreakdownPeriod(cat = null){
+  activeDateRange = getBreakdownPeriodBounds();
+  if(cat) activeFilter = cat;
+  buildFilterBar();
+  renderTransactions();
+  switchTab('transactions');
 }
 
 // ── TRANSACTIONS ──────────────────────────────────────────────────────────────
@@ -1073,10 +1182,18 @@ function buildFilterBar(){
     let iB = saved.indexOf(b); if(iB===-1) iB=999;
     return iA - iB;
   });
-  bar.innerHTML=chips.map(c=>{
+  
+  let html = '';
+  if (activeDateRange) {
+    html += '<button class="filter-chip active" onclick="clearDateFilter(event)" style="margin-right:8px; border-color: #f59e0b; background: rgba(245,158,11,0.1); color: #f59e0b;">📅 ' + activeDateRange.label + ' &nbsp;✕</button><div style="display:inline-block;width:1px;background:var(--border-color);margin-right:8px;flex-shrink:0;"></div>';
+  }
+  
+  html += chips.map(c=>{
     const val=c==='⚠ Uncat.'?'Uncategorised':c;
     return'<button class="filter-chip'+(activeFilter===val?' active':'')+'" onclick="setFilter(\''+val+'\',event)">'+c+'</button>';
   }).join('') + '<button class="filter-chip" onclick="openReorderModal(\'filters\')" style="padding:4px 8px;font-size:14px;background:none;border:none;">⚙️</button>';
+  
+  bar.innerHTML = html;
 }
 
 function setFilter(cat,e){
@@ -1101,6 +1218,11 @@ function renderTransactions(){
 
   let list=transactions
     .map((t,i)=>({...t,_idx:i}))
+    .filter(t=>{
+      if(!activeDateRange) return true;
+      const d = parseDate(t.date);
+      return d && d >= activeDateRange.from && d <= activeDateRange.to;
+    })
     .filter(t=>activeFilter==='All'||t.category===activeFilter)
     .filter(t=>{
       if(!query)return true;
