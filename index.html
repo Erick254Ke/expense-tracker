@@ -29,7 +29,7 @@
   .topbar p{font-size:11px;color:var(--text-secondary);margin-top:2px;letter-spacing:0.2px;}
   .review-badge{font-size:11px;background:rgba(245,158,11,0.15);color:#fcd34d;padding:3px 9px;border-radius:99px;display:none;font-weight:600;}
 
-  .tab-bar{display:flex;background:var(--bg-main);border-bottom:1px solid var(--border-color);overflow-x:auto;scrollbar-width:none;}
+  .tab-bar{display:flex;background:var(--bg-main);border-bottom:1px solid var(--border-color);overflow-x:auto;scrollbar-width:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
   .tab-bar::-webkit-scrollbar{display:none;}
   .tab{flex-shrink:0;padding:12px 14px;font-size:13px;color:var(--text-secondary);border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;font-weight:500;white-space:nowrap;transition:color 0.2s;}
   .tab.active{color:var(--text-primary);border-bottom-color:var(--accent-blue);}
@@ -131,7 +131,7 @@
   .sort-row{display:flex;justify-content:flex-end;margin-bottom:10px;}
   .sort-select{padding:7px 12px;border:1px solid var(--border-color);border-radius:8px;font-size:12px;background:var(--surface-light);color:var(--text-primary);appearance:none;-webkit-appearance:none;font-weight:500;font-family:'Outfit',sans-serif;}
 
-  .filter-bar{display:flex;gap:8px;margin-bottom:16px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
+  .filter-bar{display:flex;gap:8px;margin-bottom:16px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;-webkit-overflow-scrolling:touch;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
   .filter-bar::-webkit-scrollbar{display:none;}
   .filter-chip{flex-shrink:0;padding:7px 14px;border-radius:99px;border:1px solid var(--border-color);background:var(--surface-light);font-size:12px;color:var(--text-secondary);cursor:pointer;white-space:nowrap;font-weight:500;transition:all 0.2s;}
   .filter-chip.active{background:var(--accent-blue);color:#fff;border-color:var(--accent-blue);box-shadow:0 2px 6px rgba(99,102,241,0.3);}
@@ -233,7 +233,6 @@
   </div>
   <div style="display:flex;align-items:center;">
     <span class="review-badge" id="review-badge">● needs review</span>
-    <button onclick="openReorderModal('tabs')" style="background:none;border:none;font-size:16px;cursor:pointer;padding:4px;margin-left:8px;" title="Rearrange Tabs">⚙️</button>
   </div>
 </div>
 
@@ -576,7 +575,7 @@ let tabOrder = safeLoad('ke_tabs', Object.keys(ALL_TABS));
 function renderTabs() {
   const bar = document.getElementById('main-tab-bar');
   if(!bar) return;
-  bar.innerHTML = tabOrder.map(k => '<button class="tab'+(k===activeTab?' active':'')+'" onclick="switchTab(\''+k+'\')">'+ALL_TABS[k]+'</button>').join('');
+  bar.innerHTML = tabOrder.map(k => '<button class="tab draggable-item'+(k===activeTab?' active':'')+'" data-id="'+k+'" onclick="switchTab(\''+k+'\')">'+ALL_TABS[k]+'</button>').join('');
 }
 let periodOffset=0;
 let rangeFrom=null, rangeTo=null;
@@ -586,6 +585,8 @@ let activeDateRange=null;
 let breakdownPeriodMode='month';
 let breakdownPeriodOffset=0;
 let breakdownRangeFrom=null, breakdownRangeTo=null;
+
+let draggingState = null;
 
 // Safe localStorage load
 function safeLoad(key,fallback){
@@ -1235,8 +1236,8 @@ function buildFilterBar(){
   
   html += chips.map(c=>{
     const val=c==='⚠ Uncat.'?'Uncategorised':c;
-    return'<button class="filter-chip'+(activeFilter===val?' active':'')+'" onclick="setFilter(\''+val+'\',event)">'+c+'</button>';
-  }).join('') + '<button class="filter-chip" onclick="openReorderModal(\'filters\')" style="padding:4px 8px;font-size:14px;background:none;border:none;">⚙️</button>';
+    return'<button class="filter-chip draggable-item'+(activeFilter===val?' active':'')+'" data-id="'+c.replace(/"/g, '&quot;')+'" onclick="setFilter(\''+val+'\',event)">'+c+'</button>';
+  }).join('');
   
   bar.innerHTML = html;
 }
@@ -1547,7 +1548,8 @@ function deleteRule(e,name){
 
 // ── BACKUP & RESTORE ──────────────────────────────────────────────────────────
 function exportBackup() {
-  const data = { transactions, CATS, nameRules, budgets, tabOrder, version: 1 };
+  const filterOrder = safeLoad('ke_filters', []);
+  const data = { transactions, CATS, nameRules, budgets, tabOrder, filterOrder, version: 1 };
   const json = JSON.stringify(data);
   const blob = new Blob([json], {type: 'application/json'});
   const url = URL.createObjectURL(blob);
@@ -1577,6 +1579,7 @@ function importBackup(e) {
         nameRules = data.nameRules || {};
         budgets = data.budgets || {};
         if (data.tabOrder) tabOrder = data.tabOrder;
+        if (data.filterOrder) safeStore('ke_filters', data.filterOrder);
         
         save(); saveCats(); saveRules(); safeStore(BUDGETS_KEY, budgets);
         if(data.tabOrder) safeStore('ke_tabs', tabOrder);
@@ -1743,6 +1746,121 @@ function renderAll(){
   populateManualCategorySelect();
 }
 
+function initDraggableLists() {
+  const bars = [
+    { id: 'main-tab-bar', saveFn: (ids) => { tabOrder = ids; safeStore('ke_tabs', ids); renderTabs(); } },
+    { id: 'filter-bar', saveFn: (ids) => { safeStore('ke_filters', ids); buildFilterBar(); } }
+  ];
+
+  bars.forEach(b => {
+    const container = document.getElementById(b.id);
+    if (!container) return;
+
+    let timer = null; let dragEl = null; let placeholder = null; let startX = 0;
+    
+    const onStart = (e) => {
+      if (e.type === 'touchstart' && e.touches.length > 1) return;
+      if (e.type === 'mousedown' && e.button !== 0) return;
+      const target = e.target.closest('.draggable-item');
+      if (!target || target.parentNode !== container) return;
+
+      timer = setTimeout(() => {
+        timer = null;
+        if (navigator.vibrate) navigator.vibrate(50);
+        
+        dragEl = target;
+        const rect = dragEl.getBoundingClientRect();
+        startX = (e.type === 'touchstart' ? e.touches[0].clientX : e.clientX);
+        
+        placeholder = document.createElement('div');
+        placeholder.style.width = rect.width + 'px';
+        placeholder.style.height = rect.height + 'px';
+        placeholder.style.flexShrink = '0';
+        placeholder.style.background = 'var(--surface-lighter)';
+        placeholder.style.borderRadius = window.getComputedStyle(dragEl).borderRadius;
+        placeholder.style.margin = window.getComputedStyle(dragEl).margin;
+        container.insertBefore(placeholder, dragEl);
+        
+        dragEl.style.position = 'fixed';
+        dragEl.style.left = rect.left + 'px';
+        dragEl.style.top = rect.top + 'px';
+        dragEl.style.zIndex = '1000';
+        dragEl.style.opacity = '0.9';
+        dragEl.style.boxShadow = '0 10px 20px rgba(0,0,0,0.3)';
+        dragEl.style.pointerEvents = 'none';
+        dragEl.style.transition = 'none';
+        document.body.appendChild(dragEl);
+        document.body.style.userSelect = 'none';
+        
+        draggingState = { container, placeholder, dragEl, startX, saveFn: b.saveFn };
+      }, 400); // 400ms hold to drag
+    };
+
+    const onCancel = () => { if (timer) { clearTimeout(timer); timer = null; } };
+    
+    container.addEventListener('mousedown', onStart);
+    container.addEventListener('touchstart', onStart, {passive: true});
+    container.addEventListener('mouseup', onCancel);
+    container.addEventListener('touchend', onCancel);
+    container.addEventListener('mousemove', onCancel);
+    container.addEventListener('touchmove', onCancel, {passive: true});
+    container.addEventListener('contextmenu', (e) => { if (!timer && draggingState) e.preventDefault(); });
+  });
+}
+
+document.addEventListener('mousemove', onDragMove, {passive: false});
+document.addEventListener('touchmove', onDragMove, {passive: false});
+document.addEventListener('mouseup', onDragEnd);
+document.addEventListener('touchend', onDragEnd);
+
+function onDragMove(e) {
+  if (!draggingState) return;
+  e.preventDefault(); 
+  const s = draggingState;
+  const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
+  const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+  s.dragEl.style.transform = 'translateX('+(clientX - s.startX)+'px)';
+  
+  let hoverEl = document.elementFromPoint(clientX, clientY);
+  if (!hoverEl) return;
+  hoverEl = hoverEl.closest('.draggable-item');
+  
+  if (hoverEl && hoverEl.parentNode === s.container && hoverEl !== s.dragEl) {
+    const rect = hoverEl.getBoundingClientRect();
+    if (clientX < rect.left + rect.width / 2) {
+      s.container.insertBefore(s.placeholder, hoverEl);
+    } else {
+      s.container.insertBefore(s.placeholder, hoverEl.nextSibling);
+    }
+  }
+}
+
+function onDragEnd() {
+  if (!draggingState) return;
+  const s = draggingState;
+  
+  document.body.style.userSelect = '';
+  s.dragEl.style.position = '';
+  s.dragEl.style.left = '';
+  s.dragEl.style.top = '';
+  s.dragEl.style.zIndex = '';
+  s.dragEl.style.opacity = '';
+  s.dragEl.style.boxShadow = '';
+  s.dragEl.style.pointerEvents = '';
+  s.dragEl.style.transform = '';
+  s.dragEl.style.transition = '';
+  
+  if(s.placeholder.parentNode){
+    s.placeholder.parentNode.insertBefore(s.dragEl, s.placeholder);
+    s.placeholder.remove();
+  }
+  
+  const newOrder = Array.from(s.container.querySelectorAll('.draggable-item')).map(el => el.getAttribute('data-id'));
+  
+  draggingState = null;
+  s.saveFn(newOrder);
+}
+
 function switchTab(tab){
   activeTab = tab;
   document.querySelectorAll('.tab').forEach(t=>{
@@ -1798,6 +1916,7 @@ loadCats();
 rebuildCatMap();
 populateManualCategorySelect();
 renderAll();
+initDraggableLists();
 </script>
 </body>
 </html>
