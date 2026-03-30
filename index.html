@@ -164,6 +164,8 @@
   .form-field label{font-size:11px;color:var(--text-secondary);font-weight:700;text-transform:uppercase;letter-spacing:0.06em;}
   .form-field input,.form-field select{padding:12px 14px;border:none;border-radius:var(--radius-md);font-size:14px;background:var(--surface-container);color:var(--text-primary);width:100%;font-family:var(--font-main);transition:all 0.2s;}
   .form-field input:focus,.form-field select:focus{outline:none;background:var(--surface-high);box-shadow:inset 0 0 0 1px var(--outline-variant);}
+  .form-field input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); opacity: 0.6; cursor: pointer; }
+  .light-theme .form-field input[type="date"]::-webkit-calendar-picker-indicator { filter: none; }
   .form-field select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23c7c4d7'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;}
   .type-toggle{display:flex;gap:10px;margin-bottom:16px;}
   .type-btn{flex:1;padding:12px;border-radius:var(--radius-full);border:1px solid var(--outline-variant);background:transparent;font-size:14px;font-weight:700;cursor:pointer;color:var(--text-secondary);transition:all 0.2s;}
@@ -417,12 +419,23 @@ UCE9Q9DAVM Confirmed. Ksh40.00 paid to BRILLIANT UNITED BARAKA SHOP via Kopo Kop
       <span class="period-label" id="period-label" onclick="viewTransactionsForPeriod()" style="cursor:pointer; display:flex; align-items:center; gap:6px; padding:4px 8px; border-radius:8px; transition:background 0.2s;" onmouseover="this.style.background='var(--surface-lighter)'" onmouseout="this.style.background='transparent'" title="Tap to view transactions for this period">—</span>
       <button onclick="shiftPeriod(1)">&#8250;</button>
     </div>
-    <div id="range-picker" style="display:none">
-      <div class="date-range-row">
-        <input type="date" id="range-from">
-        <span style="font-size:13px;color:#888">to</span>
-        <input type="date" id="range-to">
-        <button onclick="applyRange()">Go</button>
+    <div id="range-picker" style="display:none; margin-bottom: 24px;">
+      <div class="manual-form" style="margin-top:0;">
+        <div class="manual-form-title"><span class="material-symbols-outlined" style="font-size:18px;vertical-align:middle;margin-right:4px">date_range</span> Custom Date Range</div>
+        <div class="form-row">
+          <div class="form-field">
+            <label>From</label>
+            <input type="date" id="range-from">
+          </div>
+          <div class="form-field">
+            <label>To</label>
+            <input type="date" id="range-to">
+          </div>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:8px;">
+          <button class="btn-primary" style="margin-top:0; flex:1;" onclick="applyRange()">Apply Range</button>
+          <button class="btn-ghost" style="margin-top:0; flex:1; display:none;" id="btn-range-view" onclick="viewTransactionsForPeriod()">View Transactions</button>
+        </div>
       </div>
     </div>
     
@@ -476,12 +489,23 @@ UCE9Q9DAVM Confirmed. Ksh40.00 paid to BRILLIANT UNITED BARAKA SHOP via Kopo Kop
       <span class="period-label" id="bd-period-label" onclick="viewTransactionsForBreakdownPeriod()" style="cursor:pointer; display:flex; align-items:center; gap:6px; padding:4px 8px; border-radius:8px; transition:background 0.2s;" onmouseover="this.style.background='var(--surface-lighter)'" onmouseout="this.style.background='transparent'" title="Tap to view transactions for this period">—</span>
       <button onclick="shiftBreakdownPeriod(1)">&#8250;</button>
     </div>
-    <div id="bd-range-picker" style="display:none">
-      <div class="date-range-row">
-        <input type="date" id="bd-range-from">
-        <span style="font-size:13px;color:#888">to</span>
-        <input type="date" id="bd-range-to">
-        <button onclick="applyBreakdownRange()">Go</button>
+    <div id="bd-range-picker" style="display:none; margin-bottom: 24px;">
+      <div class="manual-form" style="margin-top:0;">
+        <div class="manual-form-title"><span class="material-symbols-outlined" style="font-size:18px;vertical-align:middle;margin-right:4px">date_range</span> Custom Date Range</div>
+        <div class="form-row">
+          <div class="form-field">
+            <label>From</label>
+            <input type="date" id="bd-range-from">
+          </div>
+          <div class="form-field">
+            <label>To</label>
+            <input type="date" id="bd-range-to">
+          </div>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:8px;">
+          <button class="btn-primary" style="margin-top:0; flex:1;" onclick="applyBreakdownRange()">Apply Range</button>
+          <button class="btn-ghost" style="margin-top:0; flex:1; display:none;" id="btn-bd-range-view" onclick="viewTransactionsForBreakdownPeriod()">View Transactions</button>
+        </div>
       </div>
     </div>
     <div class="sub-tab-bar">
@@ -593,6 +617,10 @@ UCE9Q9DAVM Confirmed. Ksh40.00 paid to BRILLIANT UNITED BARAKA SHOP via Kopo Kop
       <input type="checkbox" id="modal-save-rule" checked>
       <label for="modal-save-rule">Also save as a rule — automatically apply this category to future transactions with the same name</label>
     </div>
+    <div class="modal-rule-toggle" id="modal-exclude-toggle" style="margin-top:0;">
+      <input type="checkbox" id="modal-exclude-tx">
+      <label for="modal-exclude-tx">Exclude from dashboard totals (transfers, loans, reimbursements)</label>
+    </div>
     <div class="modal-grid" id="modal-grid"></div>
     <div id="modal-reorder-wrap" style="display:none"></div>
     <button class="modal-cancel" onclick="closeModal()">Cancel</button>
@@ -686,6 +714,7 @@ const DEFAULT_CATS=[
   {name:'Money Received',   color:'#e1e2eb',bg:'#1d2026',bar:'#10b981'},
   {name:'Savings & Loans',  color:'#e1e2eb',bg:'#1d2026',bar:'#a78bfa'},
   {name:'Other',            color:'#e1e2eb',bg:'#1d2026',bar:'#464554'},
+  {name:'Transfers',        color:'#e1e2eb',bg:'#1d2026',bar:'#94a3b8'},
   {name:'Uncategorised',    color:'#e1e2eb',bg:'#1d2026',bar:'#f59e0b'},
 ];
 // Preset palette for new categories
@@ -920,11 +949,18 @@ function isCommute(time){
   return(m>=390&&m<=480)||(m>=990&&m<=1080);
 }
 function applyRules(tx){
-  if(tx.manual)return tx; // manual entries keep their category
+  const key=(tx.description||'').trim().toUpperCase();
+  const matchedCat = nameRules[key];
+  if(tx.manual) {
+    if(tx.category === 'Transfers' && tx.excluded === undefined) tx.excluded = true;
+    return tx;
+  }
   if(tx.type==='debit'&&tx.amount===50&&isCommute(tx.time))
     return{...tx,category:'Transport',autoRule:'time'};
-  const key=(tx.description||'').trim().toUpperCase();
-  if(nameRules[key])return{...tx,category:nameRules[key],autoRule:'name'};
+  if(matchedCat){
+    const isExcluded = matchedCat === 'Transfers' ? true : !!tx.excluded;
+    return{...tx,category:matchedCat,autoRule:'name', excluded: isExcluded};
+  }
   return tx;
 }
 function reapplyAllRules(){
@@ -987,7 +1023,7 @@ function addManual(){
   const[y,mo,d]=dateRaw.split('-');
   const date=d+'/'+mo+'/'+y;
   const ref='MAN'+Date.now();
-  const tx={ref,description:desc+(note?' ('+note+')':''),amount,type:manualType,category:cat,source:'Manual',date,time:'',balance:null,txCost:0,autoRule:null,raw:null,manual:true};
+  const tx={ref,description:desc+(note?' ('+note+')':''),amount,type:manualType,category:cat,source:'Manual',date,time:'',balance:null,txCost:0,autoRule:null,raw:null,manual:true,excluded:(cat==='Transfers')};
   transactions.push(tx);
   save();renderAll();
   document.getElementById('m-desc').value='';
@@ -1011,6 +1047,7 @@ function applyRange(){
   const t=document.getElementById('range-to').value;
   if(!f||!t){showError('Please select both dates.');return;}
   rangeFrom=new Date(f);rangeTo=new Date(t);
+  document.getElementById('btn-range-view').style.display='block';
   renderDashboard();
 }
 
@@ -1021,7 +1058,7 @@ function renderCalendar(d){
   
   // Get daily totals for this month
   const dailyTotals = {};
-  transactions.filter(t=>t.type==='debit').forEach(t=>{
+  transactions.filter(t=>t.type==='debit'&&!t.excluded).forEach(t=>{
     const td = parseDate(t.date);
     if(td && td.getFullYear()===y && td.getMonth()===m){
       dailyTotals[td.getDate()] = (dailyTotals[td.getDate()]||0) + t.amount;
@@ -1099,7 +1136,7 @@ function renderTrendsChart(){
 
   periods.forEach(p => {
     p.total = transactions
-      .filter(t=>t.type==='debit')
+      .filter(t=>t.type==='debit'&&!t.excluded)
       .reduce((s,t)=>{
         const td=parseDate(t.date);
         return(td&&td>=p.start&&td<=p.end)?s+t.amount:s;
@@ -1200,7 +1237,7 @@ function renderDashboard(){
   }else if(rangeFrom&&rangeTo){
     document.getElementById('period-label').innerHTML='<span>'+getPeriodBounds().label+'</span><span style="font-size:12px;opacity:0.6;">👁</span>';
   }
-  const filtered=filterByPeriod(transactions);
+  const filtered=filterByPeriod(transactions).filter(t=>!t.excluded);
   const debits=filtered.filter(t=>t.type==='debit');
   const credits=filtered.filter(t=>t.type==='credit');
   const totalOut=debits.reduce((s,t)=>s+t.amount,0);
@@ -1370,7 +1407,7 @@ function renderBreakdown(){
     document.getElementById('bd-period-label').textContent='Select a range';
   }
 
-  const filtered = filterByBreakdownPeriod(transactions);
+  const filtered = filterByBreakdownPeriod(transactions).filter(t=>!t.excluded);
 
   // Expenses
   const expTotals={};
@@ -1437,6 +1474,7 @@ function applyBreakdownRange(){
   const t=document.getElementById('bd-range-to').value;
   if(!f||!t){showError('Please select both dates.');return;}
   breakdownRangeFrom=new Date(f);breakdownRangeTo=new Date(t);
+  document.getElementById('btn-bd-range-view').style.display='block';
   renderBreakdown();
 }
 
@@ -1578,6 +1616,7 @@ function renderTransactions(){
         +'<div style="flex:1;min-width:0;margin-left:14px">'
         +'<div class="tx-desc">'+escHtml(t.description)+'</div>'
         +'<div style="font-size:12px;color:var(--text-secondary);font-weight:600;margin-top:2px">'+t.category+'</div>'
+        +(t.excluded?'<div style="display:inline-block; margin-top:4px; padding:2px 6px; border-radius:4px; background:var(--surface-container); border:1px solid var(--outline-variant); font-size:9px; font-weight:800; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.06em;">Excluded from totals</div>':'')
         +'</div>'
         +'<div style="text-align:right;flex-shrink:0">'
         +'<div class="tx-amount '+t.type+'">'+sign+fmt(t.amount)+'</div>'
@@ -1608,6 +1647,7 @@ function getCategoryIcon(cat){
     'Money Sent': 'send_money',
     'Money Received': 'account_balance_wallet',
     'Savings & Loans': 'savings',
+    'Transfers': 'sync_alt',
     'Other': 'more_horiz',
     'Uncategorised': 'help_outline',
   };
@@ -1679,6 +1719,8 @@ function openModal(idx){
   const ruleToggle=document.getElementById('modal-rule-toggle');
   ruleToggle.style.display=tx.manual?'none':'flex';
   document.getElementById('modal-save-rule').checked=!!nameRules[key];
+  document.getElementById('modal-exclude-toggle').style.display='flex';
+  document.getElementById('modal-exclude-tx').checked=!!tx.excluded;
 
   document.getElementById('modal-grid').innerHTML=CATS
     .filter(c=>c.name!=='Uncategorised').concat([catMap['Uncategorised']])
@@ -1700,9 +1742,12 @@ function setCategory(cat){
   const tx=transactions[editingIndex];
   const key=(tx.description||'').trim().toUpperCase();
   const saveRule=document.getElementById('modal-save-rule').checked;
+  let excludeTx=document.getElementById('modal-exclude-tx').checked;
+
+  if(cat==='Transfers' && tx.category!=='Transfers') excludeTx = true; // Auto-check for newly assigned transfers
 
   // Update this transaction
-  transactions[editingIndex]={...tx,category:cat,autoRule:cat!=='Uncategorised'&&saveRule?'name':tx.autoRule};
+  transactions[editingIndex]={...tx,category:cat,autoRule:cat!=='Uncategorised'&&saveRule?'name':tx.autoRule, excluded: excludeTx};
 
   // Optionally save/remove rule
   if(!tx.manual){
@@ -1711,7 +1756,7 @@ function setCategory(cat){
       // Apply to all other transactions with same name
       transactions=transactions.map((t,i)=>
         i!==editingIndex&&(t.description||'').trim().toUpperCase()===key&&!t.manual
-          ?{...t,category:cat,autoRule:'name'}:t
+          ?{...t,category:cat,autoRule:'name', excluded: (cat==='Transfers' ? true : t.excluded)}:t
       );
     }else if(!saveRule){
       // Don't touch rule, just update this one transaction
