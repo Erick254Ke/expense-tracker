@@ -925,11 +925,14 @@ function normDate(str){
 
 function parseMpesaMessages(text){
   const results=[];
-  const blocks=text.split(/(?=\b[A-Z0-9]{10}\s+Confirmed\.?)/);
+  // Strip WhatsApp-export wrappers like "[10:09, 07/05/2026] D: " so the
+  // wrapper date/time never pollutes ref/date extraction.
+  text=text.replace(/^\s*\[\d{1,2}:\d{2}(?::\d{2})?(?:\s?[AP]M)?,\s*\d{1,2}\/\d{1,2}\/\d{2,4}\]\s*[^:\-\n]+[:\-]\s*/gim,'');
+  const blocks=text.split(/(?=\b[A-Z0-9]{10}\s+confirmed\b)/i);
   for(const block of blocks){
     const b=block.trim();
     if(!b)continue;
-    const refMatch=b.match(/^([A-Z0-9]{10})\s+Confirmed\.?/);
+    const refMatch=b.match(/^([A-Z0-9]{10})\s+confirmed\b/i);
     if(!refMatch)continue;
     const ref=refMatch[1];
     if(transactions.some(t=>t.ref===ref)||results.some(r=>r.ref===ref))continue;
@@ -937,7 +940,10 @@ function parseMpesaMessages(text){
     const amtMatch=b.match(/Ksh\s?([\d,]+\.?\d*)/i);
     const amount=amtMatch?parseFloat(amtMatch[1].replace(/,/g,'')):null;
     if(!amount)continue;
-    const dateMatch=b.match(/\b(\d{1,2}\/\d{1,2}\/\d{2,4})\b/);
+    // Prefer the date that follows " on " (the real transaction date),
+    // falling back to the first date-like token in the block.
+    const onDateMatch=b.match(/\bon\s+(\d{1,2}\/\d{1,2}\/\d{2,4})\b/i);
+    const dateMatch=onDateMatch||b.match(/\b(\d{1,2}\/\d{1,2}\/\d{2,4})\b/);
     const date=dateMatch?normDate(dateMatch[1]):'';
     const timeMatch=b.match(/\b(\d{1,2}:\d{2}\s*[AP]M)\b/i);
     const time=timeMatch?timeMatch[1].toUpperCase():'';
@@ -958,7 +964,7 @@ function parseMpesaMessages(text){
       type='debit';aiCategory='Money Sent';
       const m=b.match(/(?:sent to|give)\s+(.*?)(?:\s+(?:\+?254|0)\d{8,}|\s+on\b|\.)/i);
       description=m?m[1].trim():'Money Sent';
-    }else if(/buy airtime|airtime for/i.test(b)){
+    }else if(/(?:bought|buy|purchased)[\s\S]{0,80}?\bairtime\b|\bairtime for\b/i.test(b)){
       type='debit';aiCategory='Airtime & Data';description='Airtime';
     }else if(/withdrawn|withdraw/i.test(b)){
       type='debit';description='Withdrawal';aiCategory='Other';
