@@ -103,6 +103,7 @@
   .sort-row { margin-bottom: 16px; display: flex; justify-content: flex-end; }
 
   *{box-sizing:border-box;margin:0;padding:0;}
+  button, input, select, textarea{font-family:inherit;}
   body{font-family:var(--font-main);background:var(--bg-main);color:var(--text-primary);min-height:100vh;line-height:1.5; -webkit-font-smoothing: antialiased; transition: background 0.3s, color 0.3s;}
 
   /* Material Symbols */
@@ -175,7 +176,7 @@
   /* Dashboard */
   .period-tabs{display:flex;gap:6px;margin-bottom:20px;background:var(--surface-lowest);padding:6px;border-radius:var(--radius-full);width:fit-content;margin-left:auto;margin-right:auto;}
   .period-tab{padding:8px 16px;text-align:center;font-size:12px;font-weight:700;border:none;border-radius:var(--radius-full);background:transparent;color:var(--text-secondary);cursor:pointer;transition:all 0.2s;}
-  .period-tab.active{background:var(--surface-highest);color:var(--text-primary);box-shadow:0 2px 4px rgba(0,0,0,0.2);}
+  .period-tab.active{background:var(--accent-primary);color:var(--text-on-primary);box-shadow:0 4px 10px var(--accent-shadow);}
   .period-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;background:var(--surface-low);border-radius:var(--radius-lg);padding:14px 20px;}
   .period-nav button{background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-secondary);padding:0 10px;display:flex;align-items:center;}
   .period-label{font-family:var(--font-display);font-size:16px;font-weight:800;color:var(--text-primary);letter-spacing:-0.01em;}
@@ -296,7 +297,7 @@
   /* Sub-tabs (Income / Expenses) */
   .sub-tab-bar{display:flex;gap:6px;margin-bottom:20px;padding:6px;background:var(--surface-lowest);border-radius:var(--radius-full);}
   .sub-tab{flex:1;padding:12px;text-align:center;font-size:13px;font-weight:700;color:var(--text-secondary);cursor:pointer;border:none;background:transparent;border-radius:var(--radius-full);transition:all 0.2s;text-transform:uppercase;letter-spacing:0.04em;}
-  .sub-tab.active{background:var(--surface-highest);color:var(--text-primary);box-shadow:0 2px 4px rgba(0,0,0,0.2);}
+  .sub-tab.active{background:var(--accent-primary);color:var(--text-on-primary);box-shadow:0 4px 10px var(--accent-shadow);}
 
   /* Categories management */
   .cat-mgmt-card{background:var(--surface-low);border-radius:var(--radius-lg);padding:16px 20px;margin-bottom:12px;display:flex;align-items:center;gap:14px;box-shadow:0 4px 12px rgba(0,0,0,0.1);}
@@ -314,6 +315,43 @@
   .color-swatch.selected{border-color:var(--text-primary);box-shadow:0 0 0 2px var(--bg-main), 0 0 0 4px var(--accent-primary);}
   .color-swatch:hover{transform:scale(1.1);}
   #new-cat-name{background:var(--surface-container) !important; color:var(--text-primary) !important; border:none !important; border-radius:var(--radius-md) !important; padding:12px 14px !important; font-family:var(--font-main) !important; font-weight:600 !important;}
+
+  /* Floating Back to Top Button */
+  #back-to-top {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--glass-bg);
+    border: 1px solid var(--outline-variant);
+    color: var(--accent-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 99;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    box-shadow: var(--shadow-ambient);
+  }
+  #back-to-top:hover {
+    background: var(--accent-primary);
+    color: var(--text-on-primary);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px var(--accent-shadow);
+  }
+  #back-to-top:active {
+    transform: scale(0.92) translateY(-2px);
+  }
+  #back-to-top.visible {
+    opacity: 1;
+    visibility: visible;
+  }
 </style>
 </head>
 <body>
@@ -449,7 +487,7 @@ UCE9Q9DAVM Confirmed. Ksh40.00 paid to BRILLIANT UNITED BARAKA SHOP via Kopo Kop
       </div>
     </div>
     
-    <div id="calendar-view" style="display:none;background:#fff;border:1px solid #e0ddd6;border-radius:12px;padding:12px;margin-bottom:16px;"></div>
+    <div id="calendar-view" style="display:none;background:var(--surface-low);border:1px solid var(--outline-variant);border-radius:var(--radius-xl);padding:16px;margin-bottom:16px;"></div>
 
     <div id="dashboard-standard">
       <div class="summary-grid">
@@ -562,11 +600,6 @@ UCE9Q9DAVM Confirmed. Ksh40.00 paid to BRILLIANT UNITED BARAKA SHOP via Kopo Kop
      RULES
 ══════════════════════════════════════════════ -->
 <div id="tab-rules" class="section">
-  <div class="fixed-rule-card">
-    <div style="font-size:13px;font-weight:600;margin-bottom:3px">Transport time rule</div>
-    <div style="font-size:12px;color:#555;margin-top:2px">Ksh 50 debits · 6:30–8:00 AM or 4:30–6:00 PM → Transport</div>
-    <div style="font-size:11px;color:#7c3aed;margin-top:5px">Built-in · always active</div>
-  </div>
   <div class="fixed-rule-card">
     <div style="font-size:13px;font-weight:600;margin-bottom:3px">Transaction cost rule</div>
     <div style="font-size:12px;color:#555;margin-top:2px">Extracts M-Pesa transaction charges from every message</div>
@@ -947,7 +980,7 @@ function parseMpesaMessages(text){
     const date=dateMatch?normDate(dateMatch[1]):'';
     const timeMatch=b.match(/\b(\d{1,2}:\d{2}\s*[AP]M)\b/i);
     const time=timeMatch?timeMatch[1].toUpperCase():'';
-    const balMatch=b.match(/balance (?:is|was) Ksh\s?([\d,]+\.?\d*)/i);
+    const balMatch=b.match(/balance\s+(?:is|was)\s+Ksh\s?([\d,]+\.?\d*)/i);
     const balance=balMatch?parseFloat(balMatch[1].replace(/,/g,'')):null;
     const costMatch=b.match(/[Tt]ransaction cost[,.]?\s*Ksh\s?([\d,]+\.?\d*)/i);
     const txCost=costMatch?parseFloat(costMatch[1].replace(/,/g,'')):0;
@@ -965,7 +998,9 @@ function parseMpesaMessages(text){
       const m=b.match(/(?:sent to|give)\s+(.*?)(?:\s+(?:\+?254|0)\d{8,}|\s+on\b|\.)/i);
       description=m?m[1].trim():'Money Sent';
     }else if(/(?:bought|buy|purchased)[\s\S]{0,80}?\bairtime\b|\bairtime for\b/i.test(b)){
-      type='debit';aiCategory='Airtime & Data';description='Airtime';
+      type='debit';aiCategory='Airtime & Data';
+      const phoneMatch=b.match(/(?:for)\s+(\+?254\d{9}|0\d{9})\b/i);
+      description=phoneMatch?'Airtime for '+phoneMatch[1]:'Airtime';
     }else if(/withdrawn|withdraw/i.test(b)){
       type='debit';description='Withdrawal';aiCategory='Other';
     }else if(/deposit/i.test(b)){
@@ -993,10 +1028,6 @@ function timeToMins(t){
   if(ap==='PM'&&h!==12)h+=12;if(ap==='AM'&&h===12)h=0;
   return h*60+min;
 }
-function isCommute(time){
-  const m=timeToMins(time);if(m===null)return false;
-  return(m>=390&&m<=480)||(m>=990&&m<=1080);
-}
 function applyRules(tx){
   const key=(tx.description||'').trim().toUpperCase();
   const matchedCat = nameRules[key];
@@ -1004,8 +1035,6 @@ function applyRules(tx){
     if(tx.category === 'Transfers' && tx.excluded === undefined) tx.excluded = true;
     return tx;
   }
-  if(tx.type==='debit'&&tx.amount===50&&isCommute(tx.time))
-    return{...tx,category:'Transport',autoRule:'time'};
   if(matchedCat){
     const isExcluded = matchedCat === 'Transfers' ? true : !!tx.excluded;
     return{...tx,category:matchedCat,autoRule:'name', excluded: isExcluded};
@@ -1125,7 +1154,7 @@ function renderCalendar(d){
   
   // Empty slots
   for(let i=0; i<firstDay; i++){
-    html += '<div style="min-height:54px;background:var(--surface-lowest);border-radius:var(--radius-md);"></div>';
+    html += '<div style="min-height:54px;background:var(--surface-lowest);opacity:0.3;border-radius:var(--radius-md);"></div>';
   }
   
   const today = new Date();
@@ -1134,7 +1163,7 @@ function renderCalendar(d){
   for(let i=1; i<=daysInMonth; i++){
     const total = dailyTotals[i] || 0;
     const isToday = isCurrentMonth && today.getDate() === i;
-    const boxBg = isToday ? 'var(--surface-high)' : 'var(--surface-low)';
+    const boxBg = isToday ? 'var(--surface-high)' : 'var(--surface-lowest)';
     const shadow = isToday ? 'box-shadow: 0 0 12px rgba(192, 193, 255, 0.2);' : '';
     const numStyle = isToday ? 'background:var(--accent-primary);color:var(--text-on-primary);border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;margin:0 auto 4px;font-weight:800;font-size:12px;' 
                              : 'color:var(--text-primary);margin-bottom:4px;font-weight:700;font-size:13px;';
@@ -2314,6 +2343,20 @@ renderAll();
 initDraggableLists();
 applySettings();
 function escHtml(s){return s?s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'):'';}
+
+// Floating back-to-top handler
+window.addEventListener('scroll', () => {
+  const btn = document.getElementById('back-to-top');
+  if (window.scrollY > 300) {
+    btn.classList.add('visible');
+  } else {
+    btn.classList.remove('visible');
+  }
+});
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 </script>
+<button id="back-to-top" onclick="scrollToTop()" title="Back to Top"><span class="material-symbols-outlined">arrow_upward</span></button>
 </body>
 </html>
