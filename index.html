@@ -716,6 +716,16 @@ UCE9Q9DAVM Confirmed. Ksh40.00 paid to BRILLIANT UNITED BARAKA SHOP via Kopo Kop
 </div>
 
 <script>
+// ── SAFE STORAGE (must be defined before any code that uses them) ─────────────
+function safeLoad(key,fallback){
+  try{const v=localStorage.getItem(key);return v?JSON.parse(v):fallback;}
+  catch(e){console.warn('localStorage read error',key,e);return fallback;}
+}
+function safeStore(key,val){
+  try{localStorage.setItem(key,JSON.stringify(val));}
+  catch(e){console.warn('localStorage write error',key,e);}
+}
+
 // ── SETTINGS ──────────────────────────────────────────────────────────────────
 let appSettings = safeLoad('ke_settings', { theme: 'dark', palette: 'obsidian', font: 'md', chart: 'line' });
 
@@ -821,15 +831,7 @@ let breakdownRangeFrom=null, breakdownRangeTo=null;
 
 let draggingState = null;
 
-// Safe localStorage load
-function safeLoad(key,fallback){
-  try{const v=localStorage.getItem(key);return v?JSON.parse(v):fallback;}
-  catch(e){console.warn('localStorage read error',key,e);return fallback;}
-}
-function safeStore(key,val){
-  try{localStorage.setItem(key,JSON.stringify(val));}
-  catch(e){console.warn('localStorage write error',key,e);}
-}
+// safeLoad / safeStore defined at the top of the script block
 
 transactions=safeLoad(TX_KEY,[]);
 
@@ -1115,7 +1117,7 @@ function setPeriod(mode,e){
   periodMode=mode;periodOffset=0;
   document.querySelectorAll('#tab-dashboard .period-tab').forEach(t=>t.classList.remove('active'));
   if(e)e.target.classList.add('active');
-  document.getElementById('period-nav').style.display=mode==='range'?'none':'flex';
+  document.getElementById('period-nav').style.display=(mode==='range' || mode==='calendar')?'none':'flex';
   document.getElementById('range-picker').style.display=mode==='range'?'block':'none';
   if(mode!=='range')renderDashboard();
 }
@@ -1143,8 +1145,15 @@ function renderCalendar(d){
     }
   });
 
+  const monthName = d.toLocaleDateString('en-KE',{month:'long',year:'numeric'});
+  let html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding:6px 12px;background:var(--surface-low);border-radius:var(--radius-md);border:1px solid var(--outline-variant);">';
+  html += '<button onclick="shiftPeriod(-1)" style="background:none;border:none;color:var(--text-primary);cursor:pointer;font-size:22px;display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;transition:background 0.2s;" onmouseover="this.style.background=\'var(--surface-variant)\'" onmouseout="this.style.background=\'transparent\'">&#8249;</button>';
+  html += '<span style="font-weight:700;font-size:14px;color:var(--text-primary);font-family:var(--font-main);">' + monthName + '</span>';
+  html += '<button onclick="shiftPeriod(1)" style="background:none;border:none;color:var(--text-primary);cursor:pointer;font-size:22px;display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;transition:background 0.2s;" onmouseover="this.style.background=\'var(--surface-variant)\'" onmouseout="this.style.background=\'transparent\'">&#8250;</button>';
+  html += '</div>';
+
   const daysOfWeek = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  let html = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;text-align:center;margin-bottom:12px;">';
+  html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;text-align:center;margin-bottom:12px;">';
   daysOfWeek.forEach(day => {
     html += '<div style="font-size:11px;font-weight:800;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;">'+day+'</div>';
   });
@@ -1386,13 +1395,7 @@ function clearDateFilter(e){
   renderTransactions();
 }
 
-function goFilterCat(cat){
-  activeDateRange = null;
-  activeFilter=cat;
-  buildFilterBar();
-  renderTransactions();
-  switchTab('transactions');
-}
+// goFilterCat has been removed (dead code)
 
 // ── BREAKDOWN (pie charts) ────────────────────────────────────────────────────
 function setSubTab(tab){
@@ -1411,14 +1414,14 @@ function drawPie(svgId,legendId,listId,slices,total, filteredTxs){
   if(legend) legend.style.display = 'none';
 
   if(!slices.length){
-    svg.setAttribute('viewBox', '0 0 280 280');
-    svg.innerHTML='<circle cx="140" cy="140" r="80" fill="var(--surface-container)"/><text x="140" y="145" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-secondary)">No data</text>';
+    svg.setAttribute('viewBox', '0 0 340 280');
+    svg.innerHTML='<circle cx="170" cy="140" r="58" fill="var(--surface-container)"/><circle cx="170" cy="140" r="34" fill="var(--bg-main)"/><text x="170" y="145" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-secondary)">No data</text>';
     list.innerHTML='';return;
   }
   
-  svg.setAttribute('viewBox', '0 0 280 280');
+  svg.setAttribute('viewBox', '0 0 340 280');
 
-  const cx=140,cy=140,r=80;
+  const cx=170,cy=140,r=58;
   let startAngle=-Math.PI/2;
   let paths='';
   let overlays='';
@@ -1440,10 +1443,10 @@ function drawPie(svgId,legendId,listId,slices,total, filteredTxs){
     if (pct >= 2 || slices.length <= 6) {
       const lineX1 = cx + (r * 0.95) * Math.cos(mid);
       const lineY1 = cy + (r * 0.95) * Math.sin(mid);
-      const lineX2 = cx + (r * 1.15) * Math.cos(mid);
-      const lineY2 = cy + (r * 1.15) * Math.sin(mid);
+      const lineX2 = cx + (r * 1.35) * Math.cos(mid);
+      const lineY2 = cy + (r * 1.35) * Math.sin(mid);
       const isRight = Math.cos(mid) >= -0.01;
-      const lineX3 = isRight ? lineX2 + 10 : lineX2 - 10;
+      const lineX3 = isRight ? lineX2 + 15 : lineX2 - 15;
       
       overlays += `<polyline points="${lineX1},${lineY1} ${lineX2},${lineY2} ${lineX3},${lineY2}" fill="none" stroke="var(--text-secondary)" stroke-width="1.5" opacity="0.5"/>`;
       
@@ -1452,13 +1455,18 @@ function drawPie(svgId,legendId,listId,slices,total, filteredTxs){
       const labelY = lineY2 + 3;
       
       // Limit label length and append percentage
-      const nameStr = s.name.length > 20 ? s.name.substring(0, 18)+'…' : s.name;
+      const nameStr = s.name.length > 16 ? s.name.substring(0, 14)+'…' : s.name;
       overlays += `<text x="${labelX}" y="${labelY}" font-family="var(--font-main)" font-size="calc(10px * var(--font-scale))" font-weight="700" fill="var(--text-secondary)" text-anchor="${anchor}">${nameStr} (${pct}%)</text>`;
     }
 
     startAngle=end;
   });
   
+  // Center hole cutout for the Donut Chart and center totals display
+  paths += `<circle cx="${cx}" cy="${cy}" r="${r * 0.58}" fill="var(--bg-main)" stroke="var(--bg-main)" stroke-width="2" />`;
+  paths += `<text x="${cx}" y="${cy - 4}" text-anchor="middle" font-family="var(--font-main)" font-size="9px" font-weight="800" fill="var(--text-secondary)" text-transform="uppercase" letter-spacing="0.05em">Total</text>`;
+  paths += `<text x="${cx}" y="${cy + 10}" text-anchor="middle" font-family="var(--font-display)" font-size="12px" font-weight="900" fill="var(--text-primary)">${fmt(total)}</text>`;
+
   svg.innerHTML=paths+overlays;
 
   list.innerHTML=slices.map(s=>{
@@ -1682,8 +1690,8 @@ function renderTransactions(){
       const dt=isChrono ? (t.time||'') : [t.date,t.time].filter(Boolean).join(' ');
       let cls=t.category==='Uncategorised'?'uncategorised':t.autoRule?'auto-ruled':'';
       if(t.manual)cls='manual-entry';
-      const autoL=t.autoRule==='time'?'<div class="auto-label">Auto: transport time rule</div>'
-                 :t.autoRule==='name'?'<div class="auto-label">Auto: name rule</div>'
+      const autoL=t.autoRule==='name'?'<div class="auto-label">Auto: name rule</div>'
+                 :t.autoRule?'<div class="auto-label">Auto: rule</div>'
                  :t.manual?'<div class="auto-label" style="color:#0ea5e9">Manual entry</div>':'';
       const icon = getCategoryIcon(t.category);
       const iconBg = t.category==='Uncategorised' ? 'var(--surface-variant)' : c.bar+'33';
@@ -1716,7 +1724,7 @@ function renderTransactions(){
   });
 }
 
-function escHtml(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function escHtml(s){return s?s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'):'';}
 
 // Category → Material Symbol icon mapping
 function getCategoryIcon(cat){
@@ -1746,8 +1754,10 @@ function renderRules(){
   list.innerHTML=keys.sort().map(name=>{
     const cat=nameRules[name];const c=catMap[cat]||catMap['Other'];
     const cnt=transactions.filter(t=>(t.description||'').trim().toUpperCase()===name).length;
+    const badgeBg = cat === 'Uncategorised' ? 'var(--surface-variant)' : c.bar + '33';
+    const badgeColor = cat === 'Uncategorised' ? 'var(--text-secondary)' : c.bar;
     return'<div class="rule-card"><div class="rule-left"><div class="rule-name">'+escHtml(name)+'</div>'
-      +'<div class="rule-detail"><span class="badge" style="background:'+c.bg+';color:'+c.color+';font-size:10px">'+cat+'</span>'
+      +'<div class="rule-detail"><span class="badge" style="background:'+badgeBg+';color:'+badgeColor+';font-size:10px;padding:2px 6px;border-radius:4px;font-weight:600;display:inline-block;margin-right:8px;">'+cat+'</span>'
       +'<span style="font-size:12px;color:#bbb">'+cnt+' transaction'+(cnt!==1?'s':'')+'</span></div></div>'
       +'<button class="rule-delete" onclick="deleteRule(event,\''+name.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')" >Remove</button></div>';
   }).join('');
@@ -1933,11 +1943,11 @@ function openReorderModal(type){
 function renderReorderList(){
   document.getElementById('modal-reorder-wrap').innerHTML = tempOrder.map((item, i) => {
      const label = reorderType === 'tabs' ? ALL_TABS[item] : item;
-     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:#f8f7f4;border-radius:8px;margin-bottom:6px;">
-       <span style="font-size:14px;font-weight:500">${label}</span>
+     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--surface-low);border:1px solid var(--outline-variant);border-radius:8px;margin-bottom:6px;color:var(--text-primary);">
+       <span style="font-size:14px;font-weight:600">${label}</span>
        <div>
-         <button onclick="moveItem(${i}, -1)" ${i===0?'disabled':''} style="padding:6px 12px;border-radius:6px;border:1px solid #ddd;background:#fff;cursor:pointer;">↑</button>
-         <button onclick="moveItem(${i}, 1)" ${i===tempOrder.length-1?'disabled':''} style="padding:6px 12px;border-radius:6px;border:1px solid #ddd;background:#fff;margin-left:4px;cursor:pointer;">↓</button>
+         <button onclick="moveItem(${i}, -1)" ${i===0?'disabled':''} style="padding:6px 12px;border-radius:6px;border:1px solid var(--outline-variant);background:var(--surface-highest);color:var(--text-primary);font-weight:800;cursor:pointer;opacity:${i===0?0.3:1};">↑</button>
+         <button onclick="moveItem(${i}, 1)" ${i===tempOrder.length-1?'disabled':''} style="padding:6px 12px;border-radius:6px;border:1px solid var(--outline-variant);background:var(--surface-highest);color:var(--text-primary);font-weight:800;margin-left:4px;cursor:pointer;opacity:${i===tempOrder.length-1?0.3:1};">↓</button>
        </div>
      </div>`;
   }).join('') + '<button class="btn-primary" onclick="saveReorder()" style="margin-top:12px">Save Order</button>';
@@ -2113,8 +2123,19 @@ function saveCatRename(i){
   // Migrate rules
   const ruleKeys=Object.keys(nameRules).filter(k=>nameRules[k]===oldName);
   ruleKeys.forEach(k=>{nameRules[k]=newName;});
-  // Migrate budgets
-  if(budgets[oldName]!==undefined){budgets[newName]=budgets[oldName];delete budgets[oldName];}
+  // Migrate budgets (month-keyed format: {"2026-05": {"Food": 4800}})
+  Object.keys(budgets).forEach(mk=>{
+    if(/^\d{4}-\d{2}$/.test(mk)&&budgets[mk]&&budgets[mk][oldName]!==undefined){
+      budgets[mk][newName]=budgets[mk][oldName];delete budgets[mk][oldName];
+    }
+  });
+  // Migrate filters order
+  let filtersOrder = safeLoad('ke_filters', []);
+  const fIdx = filtersOrder.indexOf(oldName);
+  if (fIdx !== -1) {
+    filtersOrder[fIdx] = newName;
+    safeStore('ke_filters', filtersOrder);
+  }
   // Update CATS
   CATS[i]={...CATS[i],name:newName};
   saveCats();rebuildCatMap();save();saveRules();safeStore(BUDGETS_KEY,budgets);
@@ -2133,8 +2154,17 @@ function deleteCategory(i){
   transactions=transactions.map(t=>t.category===c.name?{...t,category:'Uncategorised',autoRule:null}:t);
   // Remove rules pointing to this category
   Object.keys(nameRules).forEach(k=>{if(nameRules[k]===c.name)delete nameRules[k];});
-  // Remove budget
-  delete budgets[c.name];
+  // Remove budget (month-keyed format)
+  Object.keys(budgets).forEach(mk=>{
+    if(/^\d{4}-\d{2}$/.test(mk)&&budgets[mk]){delete budgets[mk][c.name];}
+  });
+  // Remove category from filters order
+  let filtersOrder = safeLoad('ke_filters', []);
+  const fIdx = filtersOrder.indexOf(c.name);
+  if (fIdx !== -1) {
+    filtersOrder.splice(fIdx, 1);
+    safeStore('ke_filters', filtersOrder);
+  }
   CATS.splice(i,1);
   saveCats();rebuildCatMap();save();saveRules();safeStore(BUDGETS_KEY,budgets);
   renderAll();renderCategoryManager();
@@ -2286,6 +2316,11 @@ function onDragEnd() {
 }
 
 function switchTab(tab){
+  if(tab !== 'transactions'){
+    activeDateRange = null;
+    buildFilterBar();
+    renderTransactions();
+  }
   activeTab = tab;
   document.querySelectorAll('.tab').forEach(t=>{
     const isActive = t.getAttribute('onclick') === `switchTab('${tab}')`;
@@ -2308,7 +2343,7 @@ function updateBadge(){
 
 function clearAll(){
   if(!confirm('Delete ALL transactions and budgets? Your rules and categories will be kept.'))return;
-  transactions=[];budgets={};
+  transactions=[];budgets={};budgetEditMonth=null;
   save();safeStore(BUDGETS_KEY,{});
   renderAll();
   showResult('All transactions cleared. Rules and categories are still saved.');
@@ -2330,7 +2365,7 @@ function hideMessages(){
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
-if ('serviceWorker' in navigator) {
+if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW registration failed:', err));
   });
@@ -2342,7 +2377,7 @@ populateManualCategorySelect();
 renderAll();
 initDraggableLists();
 applySettings();
-function escHtml(s){return s?s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'):'';}
+// escHtml defined at the top of the file
 
 // Floating back-to-top handler
 window.addEventListener('scroll', () => {
