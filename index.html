@@ -379,6 +379,15 @@
 <div class="tab-bar" id="main-tab-bar">
 </div>
 
+<!-- Storage Warning Banner -->
+<div id="storage-warning-banner" style="display:none; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.25); border-radius:var(--radius-lg); padding:14px 18px; margin:14px; color:var(--status-danger); font-size:13px; font-weight:600; line-height:1.5; box-shadow:var(--shadow-ambient);">
+  <div style="display:flex; align-items:center; gap:10px;">
+    <span class="material-symbols-outlined" style="font-size:20px; flex-shrink:0;">warning</span>
+    <span style="flex:1;" id="storage-warning-text">—</span>
+    <button onclick="this.parentNode.parentNode.style.display='none'" style="background:none; border:none; color:inherit; font-weight:800; cursor:pointer; font-size:14px; padding:0 4px; opacity:0.8; transition:opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.8'">✕</button>
+  </div>
+</div>
+
 <!-- ══════════════════════════════════════════════
      ADD SMS
 ══════════════════════════════════════════════ -->
@@ -579,9 +588,35 @@ UCE9Q9DAVM Confirmed. Ksh40.00 paid to BRILLIANT UNITED BARAKA SHOP via Kopo Kop
      TRANSACTIONS
 ══════════════════════════════════════════════ -->
 <div id="tab-transactions" class="section">
-  <div class="search-wrap">
-    <span class="search-icon"><span class="material-symbols-outlined" style="font-size:18px">search</span></span>
-    <input type="text" id="tx-search" placeholder="Search transactions…" oninput="renderTransactions()">
+  <div class="search-wrap" style="display:flex; gap:10px; margin-bottom:12px; align-items:center;">
+    <div style="position:relative; flex:1;">
+      <span class="search-icon"><span class="material-symbols-outlined" style="font-size:18px">search</span></span>
+      <input type="text" id="tx-search" placeholder="Search transactions…" oninput="renderTransactions()">
+    </div>
+    <select class="sort-select" id="tx-date-select" onchange="onTxDateSelectChange()" style="flex-shrink:0; max-width:150px; margin-bottom:0;">
+      <option value="all" selected>📅 All time</option>
+      <option value="today">📅 Today</option>
+      <option value="week">📅 This week</option>
+      <option value="month">📅 This month</option>
+      <option value="last-month">📅 Last month</option>
+      <option value="custom">📅 Custom...</option>
+    </select>
+  </div>
+  
+  <div id="tx-custom-date-container" style="display:none; margin-bottom:16px;">
+    <div class="manual-form" style="margin-top:0; padding:16px; border:1px solid var(--outline-variant); background:var(--surface-lowest);">
+      <div class="manual-form-title" style="font-size:13px; margin-bottom:12px; display:flex; align-items:center; gap:4px; font-weight:700;"><span class="material-symbols-outlined" style="font-size:16px">date_range</span> Custom Date Range</div>
+      <div class="form-row" style="margin-bottom:0;">
+        <div class="form-field">
+          <label style="font-size:10px; margin-bottom:4px;">From</label>
+          <input type="date" id="tx-range-from" onchange="applyTxCustomDateRange()">
+        </div>
+        <div class="form-field">
+          <label style="font-size:10px; margin-bottom:4px;">To</label>
+          <input type="date" id="tx-range-to" onchange="applyTxCustomDateRange()">
+        </div>
+      </div>
+    </div>
   </div>
   <div class="filter-bar" id="filter-bar"></div>
   <div class="sort-row">
@@ -722,8 +757,53 @@ function safeLoad(key,fallback){
   catch(e){console.warn('localStorage read error',key,e);return fallback;}
 }
 function safeStore(key,val){
-  try{localStorage.setItem(key,JSON.stringify(val));}
-  catch(e){console.warn('localStorage write error',key,e);}
+  let success = true;
+  try{
+    localStorage.setItem(key,JSON.stringify(val));
+  }
+  catch(e){
+    console.warn('localStorage write error',key,e);
+    success = false;
+    showStorageWarning(true, "Storage quota exceeded! Your changes could not be saved. Please backup your data and clear transactions.");
+  }
+  if (success) {
+    checkStorageQuota();
+  }
+}
+
+function showStorageWarning(show, message) {
+  const banner = document.getElementById('storage-warning-banner');
+  const text = document.getElementById('storage-warning-text');
+  if (!banner) return;
+  if (show) {
+    text.textContent = message;
+    banner.style.display = 'block';
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+function checkStorageQuota() {
+  try {
+    let total = 0;
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      const v = localStorage.getItem(k);
+      total += (k.length + (v ? v.length : 0));
+    }
+    
+    const limit = 5 * 1024 * 1024; // 5MB limit
+    const threshold = 0.8 * limit; // 80% threshold (4MB)
+    
+    if (total >= threshold) {
+      const percentUsed = Math.round((total / limit) * 100);
+      showStorageWarning(true, `Storage space is running low (${percentUsed}% used). Consider exporting a backup and clearing old transactions.`);
+    } else {
+      showStorageWarning(false);
+    }
+  } catch (e) {
+    console.warn('Error checking storage quota', e);
+  }
 }
 
 // ── SETTINGS ──────────────────────────────────────────────────────────────────
@@ -960,6 +1040,12 @@ function normDate(str){
 
 function parseMpesaMessages(text){
   const results=[];
+  const stats={
+    recognized: 0,
+    duplicates: 0,
+    invalidAmt: 0
+  };
+  
   // Strip WhatsApp-export wrappers like "[10:09, 07/05/2026] D: " so the
   // wrapper date/time never pollutes ref/date extraction.
   text=text.replace(/^\s*\[\d{1,2}:\d{2}(?::\d{2})?(?:\s?[AP]M)?,\s*\d{1,2}\/\d{1,2}\/\d{2,4}\]\s*[^:\-\n]+[:\-]\s*/gim,'');
@@ -967,14 +1053,24 @@ function parseMpesaMessages(text){
   for(const block of blocks){
     const b=block.trim();
     if(!b)continue;
-    const refMatch=b.match(/^([A-Z0-9]{10})\s+confirmed\b/i);
+    const refMatch=b.match(/\b([A-Z0-9]{10})\s+confirmed\b/i);
     if(!refMatch)continue;
+    stats.recognized++;
     const ref=refMatch[1];
-    if(transactions.some(t=>t.ref===ref)||results.some(r=>r.ref===ref))continue;
-    if(/account balance was/i.test(b))continue;
+    if(transactions.some(t=>t.ref===ref)||results.some(r=>r.ref===ref)){
+      stats.duplicates++;
+      continue;
+    }
+    if(/account balance was/i.test(b)) {
+      stats.invalidAmt++;
+      continue;
+    }
     const amtMatch=b.match(/Ksh\s?([\d,]+\.?\d*)/i);
     const amount=amtMatch?parseFloat(amtMatch[1].replace(/,/g,'')):null;
-    if(!amount)continue;
+    if(!amount){
+      stats.invalidAmt++;
+      continue;
+    }
     // Prefer the date that follows " on " (the real transaction date),
     // falling back to the first date-like token in the block.
     const onDateMatch=b.match(/\bon\s+(\d{1,2}\/\d{1,2}\/\d{2,4})\b/i);
@@ -1019,7 +1115,7 @@ function parseMpesaMessages(text){
     const rawSnippet=b.length>220?b.slice(0,220)+'…':b;
     results.push({ref,description,amount,type,category:aiCategory,source:'M-Pesa',date,time,balance,txCost,autoRule:null,raw:rawSnippet,manual:false});
   }
-  return results;
+  return { results, stats };
 }
 
 // ── RULES ENGINE ──────────────────────────────────────────────────────────────
@@ -1057,18 +1153,38 @@ function parseMessages(){
   hideMessages();
   if(!input){showError('Please paste some M-Pesa messages first.');return;}
   const parsed=parseMpesaMessages(input);
-  if(!parsed.length){showError('No transactions found. Make sure messages are from M-Pesa.');return;}
-  const withRules=parsed.map(applyRules);
+  const { results, stats } = parsed;
+  
+  if(!results.length){
+    if (stats.recognized === 0) {
+      showError('0 recognized M-Pesa message formats. Make sure you copied standard Safaricom texts.');
+    } else if (stats.duplicates === stats.recognized) {
+      showError(`${stats.recognized} message${stats.recognized !== 1 ? 's' : ''} found, but all have already been imported.`);
+    } else if (stats.invalidAmt === stats.recognized) {
+      showError(`${stats.recognized} message${stats.recognized !== 1 ? 's' : ''} looked like M-Pesa, but did not contain valid amounts (e.g. balance inquiries are ignored).`);
+    } else {
+      showError(`No new transactions imported. Found ${stats.duplicates} duplicates and ${stats.invalidAmt} invalid formats.`);
+    }
+    return;
+  }
+  
+  const withRules=results.map(applyRules);
   const autoCount=withRules.filter(t=>t.autoRule).length;
   const costCount=withRules.filter(t=>t.txCost>0).length;
   transactions=[...transactions,...withRules];
   save();renderAll();
   document.getElementById('sms-input').value='';
+  
   let msg='Added '+withRules.length+' transaction'+(withRules.length!==1?'s':'')+'.';
   if(autoCount)msg+=' '+autoCount+' auto-categorised.';
   if(costCount)msg+=' '+costCount+' had transaction costs extracted.';
   const uncat=withRules.filter(t=>t.category==='Uncategorised').length;
   if(uncat)msg+=' '+uncat+' need your review.';
+  
+  if (stats.duplicates > 0) {
+    msg += ` (${stats.duplicates} duplicate${stats.duplicates !== 1 ? 's' : ''} skipped)`;
+  }
+  
   showResult(msg);
   setTimeout(()=>switchTab('transactions'),1200);
 }
@@ -1391,6 +1507,16 @@ function viewTransactionsForPeriod(cat = null){
 function clearDateFilter(e){
   if(e) e.stopPropagation();
   activeDateRange = null;
+  
+  const select = document.getElementById('tx-date-select');
+  if(select) {
+    select.value = 'all';
+  }
+  const container = document.getElementById('tx-custom-date-container');
+  if(container) {
+    container.style.display = 'none';
+  }
+  
   buildFilterBar();
   renderTransactions();
 }
@@ -1597,10 +1723,123 @@ function buildFilterBar(){
   }).join('');
   
   bar.innerHTML = html;
+
+  // Sync the date-filter selection element when activeDateRange changes externally
+  const select = document.getElementById('tx-date-select');
+  if (select) {
+    if (!activeDateRange) {
+      select.value = 'all';
+      const container = document.getElementById('tx-custom-date-container');
+      if (container) container.style.display = 'none';
+    } else {
+      const now = new Date();
+      const todayFrom = startOfDay(now);
+      const todayTo = new Date(todayFrom.getTime() + 86399999);
+      
+      const weekFrom = startOfWeek(now);
+      const weekTo = new Date(weekFrom.getTime() + 7*86400000 - 1);
+      
+      const monthFrom = startOfMonth(now);
+      const monthTo = new Date(monthFrom.getFullYear(), monthFrom.getMonth() + 1, 0, 23, 59, 59);
+      
+      const lastMonthFrom = startOfMonth(now); lastMonthFrom.setMonth(lastMonthFrom.getMonth() - 1);
+      const lastMonthTo = new Date(lastMonthFrom.getFullYear(), lastMonthFrom.getMonth() + 1, 0, 23, 59, 59);
+      
+      const matchRange = (r1, r2) => {
+        return r1 && r2 && Math.abs(r1.from.getTime() - r2.from.getTime()) < 5000 && Math.abs(r1.to.getTime() - r2.to.getTime()) < 5000;
+      };
+      
+      if (matchRange(activeDateRange, {from: todayFrom, to: todayTo})) {
+        select.value = 'today';
+        const container = document.getElementById('tx-custom-date-container');
+        if (container) container.style.display = 'none';
+      } else if (matchRange(activeDateRange, {from: weekFrom, to: weekTo})) {
+        select.value = 'week';
+        const container = document.getElementById('tx-custom-date-container');
+        if (container) container.style.display = 'none';
+      } else if (matchRange(activeDateRange, {from: monthFrom, to: monthTo})) {
+        select.value = 'month';
+        const container = document.getElementById('tx-custom-date-container');
+        if (container) container.style.display = 'none';
+      } else if (matchRange(activeDateRange, {from: lastMonthFrom, to: lastMonthTo})) {
+        select.value = 'last-month';
+        const container = document.getElementById('tx-custom-date-container');
+        if (container) container.style.display = 'none';
+      } else {
+        select.value = 'custom';
+        const container = document.getElementById('tx-custom-date-container');
+        if (container) {
+          container.style.display = 'block';
+          const toISO = (d) => d ? d.getFullYear() + '-' + (d.getMonth()+1).toString().padStart(2,'0') + '-' + d.getDate().toString().padStart(2,'0') : '';
+          document.getElementById('tx-range-from').value = toISO(activeDateRange.from);
+          document.getElementById('tx-range-to').value = toISO(new Date(activeDateRange.to.getTime() - 86399999));
+        }
+      }
+    }
+  }
 }
 
 function setFilter(cat,e){
   activeFilter=cat;
+  buildFilterBar();
+  renderTransactions();
+}
+
+function onTxDateSelectChange() {
+  const val = document.getElementById('tx-date-select').value;
+  const container = document.getElementById('tx-custom-date-container');
+  if (val === 'custom') {
+    container.style.display = 'block';
+  } else {
+    container.style.display = 'none';
+    if (val === 'all') {
+      activeDateRange = null;
+    } else {
+      const now = new Date();
+      let from, to;
+      if (val === 'today') {
+        from = startOfDay(now);
+        to = new Date(from.getTime() + 86399999);
+      } else if (val === 'week') {
+        from = startOfWeek(now);
+        to = new Date(from.getTime() + 7 * 86400000 - 1);
+      } else if (val === 'month') {
+        from = startOfMonth(now);
+        to = new Date(from.getFullYear(), from.getMonth() + 1, 0, 23, 59, 59);
+      } else if (val === 'last-month') {
+        from = startOfMonth(now);
+        from.setMonth(from.getMonth() - 1);
+        to = new Date(from.getFullYear(), from.getMonth() + 1, 0, 23, 59, 59);
+      }
+      
+      const formatOptions = val === 'week' ? { day: 'numeric', month: 'short' } : { month: 'long', year: 'numeric' };
+      let label = '';
+      if (val === 'today') {
+        label = from.toLocaleDateString('en-KE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+      } else if (val === 'week') {
+        label = from.toLocaleDateString('en-KE', formatOptions) + ' – ' + to.toLocaleDateString('en-KE', formatOptions);
+      } else {
+        label = from.toLocaleDateString('en-KE', { month: 'long', year: 'numeric' });
+      }
+      
+      activeDateRange = { from, to, label };
+    }
+    buildFilterBar();
+    renderTransactions();
+  }
+}
+
+function applyTxCustomDateRange() {
+  const f = document.getElementById('tx-range-from').value;
+  const t = document.getElementById('tx-range-to').value;
+  if (!f || !t) return;
+  const fromDate = new Date(f);
+  const toDate = new Date(t);
+  activeDateRange = {
+    from: fromDate,
+    to: new Date(toDate.getTime() + 86399999),
+    label: fromDate.toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' }) + ' – ' + toDate.toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })
+  };
   buildFilterBar();
   renderTransactions();
 }
@@ -2188,16 +2427,29 @@ function addCategory(){
 // ── UTILS ─────────────────────────────────────────────────────────────────────
 function fmt(n){return'Ksh '+Number(n).toLocaleString('en-KE',{minimumFractionDigits:0,maximumFractionDigits:0});}
 
+function renderActiveTab(){
+  if(activeTab==='input'){
+    populateManualCategorySelect();
+  }else if(activeTab==='dashboard'){
+    renderDashboard();
+  }else if(activeTab==='breakdown'){
+    renderBreakdown();
+  }else if(activeTab==='transactions'){
+    buildFilterBar();
+    renderTransactions();
+  }else if(activeTab==='rules'){
+    renderRules();
+  }else if(activeTab==='budgets'){
+    renderBudgets();
+  }else if(activeTab==='categories'){
+    renderCategoryManager();
+  }
+}
+
 function renderAll(){
   renderTabs();
   updateBadge();
-  renderDashboard();
-  renderBreakdown();
-  renderTransactions();
-  renderRules();
-  renderBudgets();
-  buildFilterBar();
-  populateManualCategorySelect();
+  renderActiveTab();
 }
 
 function initDraggableLists() {
@@ -2318,8 +2570,6 @@ function onDragEnd() {
 function switchTab(tab){
   if(tab !== 'transactions'){
     activeDateRange = null;
-    buildFilterBar();
-    renderTransactions();
   }
   activeTab = tab;
   document.querySelectorAll('.tab').forEach(t=>{
@@ -2329,9 +2579,7 @@ function switchTab(tab){
   });
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.getElementById('tab-'+tab).classList.add('active');
-  if(tab==='dashboard')renderDashboard();
-  if(tab==='breakdown')renderBreakdown();
-  if(tab==='categories')renderCategoryManager();
+  renderActiveTab();
 }
 
 function updateBadge(){
@@ -2377,6 +2625,7 @@ populateManualCategorySelect();
 renderAll();
 initDraggableLists();
 applySettings();
+checkStorageQuota();
 // escHtml defined at the top of the file
 
 // Floating back-to-top handler
