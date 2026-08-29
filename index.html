@@ -503,7 +503,7 @@ UCE9Q9DAVM Confirmed. Ksh40.00 paid to BRILLIANT UNITED BARAKA SHOP via Kopo Kop
         <div class="metric"><div class="metric-label">Spent</div><div class="metric-value out" id="total-out">—</div></div>
         <div class="metric"><div class="metric-label">Received</div><div class="metric-value in" id="total-in">—</div></div>
         <div class="metric"><div class="metric-label">Transactions</div><div class="metric-value" id="tx-count">—</div></div>
-        <div class="metric"><div class="metric-label">Tx costs</div><div class="metric-value cost" id="total-cost">—</div></div>
+        <div class="metric"><div class="metric-label" title="Safaricom fees charged separately from transaction amounts">Safaricom fees</div><div class="metric-value cost" id="total-cost">—</div></div>
       </div>
 
       <!-- Spending trends -->
@@ -1453,9 +1453,9 @@ function renderDashboard(){
 
   renderTrendsChart();
 
-  // Budget progress for selected period's month
+  // Budget progress always anchored to the current calendar month
   const periodBounds=getPeriodBounds();
-  const mStart=startOfMonth(periodBounds.from);
+  const mStart=startOfMonth(new Date());
   const mEnd=new Date(mStart.getFullYear(),mStart.getMonth()+1,0,23,59,59);
   const monthDebits=transactions.filter(t=>{
     const d=parseDate(t.date);return t.type==='debit'&&!t.excluded&&d&&d>=mStart&&d<=mEnd;
@@ -1464,13 +1464,13 @@ function renderDashboard(){
   monthDebits.forEach(t=>{monthTotals[t.category]=(monthTotals[t.category]||0)+t.amount;});
 
   const totals={};
-  debits.filter(t=>t.category!=='Uncategorised').forEach(t=>{totals[t.category]=(totals[t.category]||0)+t.amount;});
+  debits.forEach(t=>{totals[t.category]=(totals[t.category]||0)+t.amount;});
   const sorted=Object.entries(totals).sort((a,b)=>b[1]-a[1]);
   const max=sorted[0]?.[1]||1;
-  const categorisedTotal=Object.values(totals).reduce((a,b)=>a+b,0)||1;
+  const totalDebitsSum=totalOut||1;
 
   document.getElementById('category-list').innerHTML=sorted.length?sorted.map(([cat,amt])=>{
-    const pct=Math.round(amt/categorisedTotal*100);
+    const pct=Math.round(amt/totalDebitsSum*100);
     const bar=Math.round(amt/max*100);
     const c=catMap[cat]||catMap['Other'];
     const budgetMonthKey=getBudgetMonthKey(mStart);
@@ -1487,13 +1487,13 @@ function renderDashboard(){
         +'<span class="budget-label'+(over?' over':'')+'">'+bpctReal+'%'+(over?' ⚠':'')+'</span>'
         +'</div>';
     }
-    return'<div class="cat-row" onclick="viewTransactionsForPeriod(\''+cat+'\')">'
+    return'<div class="cat-row" onclick="viewTransactionsForPeriod(\''+cat+'\')">' 
       +'<div class="cat-top"><span class="cat-name">'+cat+'</span><span class="cat-amount">'+fmt(amt)+'</span></div>'
       +'<div class="cat-bar-wrap"><div class="cat-bar" style="width:'+bar+'%;background:'+c.bar+'"></div></div>'
-      +'<div class="cat-pct">'+pct+'% of categorised spending</div>'
+      +'<div class="cat-pct">'+pct+'% of spending</div>'
       +budgetHtml
       +'</div>';
-  }).join(''):'<div style="text-align:center;padding:1.5rem;color:#bbb;font-size:13px">No categorised spending in this period.</div>';
+  }).join(''):'<div style="text-align:center;padding:1.5rem;color:#bbb;font-size:13px">No spending in this period.</div>';
 }
 
 function viewTransactionsForPeriod(cat = null){
@@ -1598,10 +1598,11 @@ function drawPie(svgId,legendId,listId,slices,total, filteredTxs){
   list.innerHTML=slices.map(s=>{
     const c=catMap[s.name]||catMap['Other'];
     const txCount=filteredTxs.filter(t=>t.category===s.name).length;
+    const pct=Math.round(s.value/total*100);
     return'<div class="cat-row" onclick="viewTransactionsForBreakdownPeriod(\''+s.name+'\')">'
       +'<div class="cat-top"><span class="cat-name">'+s.name+'</span><span class="cat-amount">'+fmt(s.value)+'</span></div>'
-      +'<div class="cat-bar-wrap"><div class="cat-bar" style="width:'+Math.round(s.value/total*100)+'%;background:'+c.bar+'"></div></div>'
-      +'<div class="cat-pct">'+txCount+' transaction'+(txCount!==1?'s':'')+' · tap to view</div>'
+      +'<div class="cat-bar-wrap"><div class="cat-bar" style="width:'+pct+'%;background:'+c.bar+'"></div></div>'
+      +'<div class="cat-pct">'+pct+'% · '+txCount+' transaction'+(txCount!==1?'s':'')+' · tap to view</div>'
       +'</div>';
   }).join('');
 }
@@ -1627,7 +1628,7 @@ function renderBreakdown(){
   // Expenses
   const expTotals={};
   filtered.filter(t=>t.type==='debit').forEach(t=>{
-    if(t.category!=='Uncategorised')expTotals[t.category]=(expTotals[t.category]||0)+t.amount;
+    expTotals[t.category]=(expTotals[t.category]||0)+t.amount;
   });
   const expTotal=Object.values(expTotals).reduce((a,b)=>a+b,0)||1;
   const expSlices=Object.entries(expTotals).sort((a,b)=>b[1]-a[1]).map(([name,value])=>({name,value,color:(catMap[name]||catMap['Other']).bar}));
