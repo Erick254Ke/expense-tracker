@@ -535,11 +535,16 @@ UCE9Q9DAVM Confirmed. Ksh40.00 paid to BRILLIANT UNITED BARAKA SHOP via Kopo Kop
     No transactions yet.<br>Go to Add SMS to get started.
   </div>
   <div id="breakdown-content" style="display:none">
-    <div class="period-tabs" style="margin-bottom:8px">
-      <button class="period-tab" onclick="setBreakdownPeriod('day',event)">Day</button>
-      <button class="period-tab" onclick="setBreakdownPeriod('week',event)">Week</button>
-      <button class="period-tab active" onclick="setBreakdownPeriod('month',event)">Month</button>
-      <button class="period-tab" onclick="setBreakdownPeriod('range',event)">Custom</button>
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+      <div class="period-tabs" style="margin-bottom:0">
+        <button class="period-tab" onclick="setBreakdownPeriod('day',event)">Day</button>
+        <button class="period-tab" onclick="setBreakdownPeriod('week',event)">Week</button>
+        <button class="period-tab active" onclick="setBreakdownPeriod('month',event)">Month</button>
+        <button class="period-tab" onclick="setBreakdownPeriod('range',event)">Custom</button>
+      </div>
+      <button onclick="syncBreakdownToDashboard()" style="padding:4px 10px; border-radius:14px; border:1px solid var(--accent-primary); background:rgba(99,102,241,0.1); color:var(--accent-primary); font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px; transition:all 0.2s;">
+        <span class="material-symbols-outlined" style="font-size:14px">sync</span> Sync to Dashboard
+      </button>
     </div>
     <div class="period-nav" id="bd-period-nav">
       <button onclick="shiftBreakdownPeriod(-1)">&#8249;</button>
@@ -588,11 +593,16 @@ UCE9Q9DAVM Confirmed. Ksh40.00 paid to BRILLIANT UNITED BARAKA SHOP via Kopo Kop
      TRANSACTIONS
 ══════════════════════════════════════════════ -->
 <div id="tab-transactions" class="section">
-  <div class="search-wrap" style="display:flex; gap:10px; margin-bottom:12px; align-items:center;">
-    <div style="position:relative; flex:1;">
+  <div class="search-wrap" style="display:flex; gap:10px; margin-bottom:12px; align-items:center; flex-wrap:wrap;">
+    <div style="position:relative; flex:1; min-width:180px;">
       <span class="search-icon"><span class="material-symbols-outlined" style="font-size:18px">search</span></span>
       <input type="text" id="tx-search" placeholder="Search transactions…" oninput="renderTransactions()">
     </div>
+    <select class="sort-select" id="tx-type-select" onchange="renderTransactions()" style="flex-shrink:0; max-width:140px; margin-bottom:0;">
+      <option value="all" selected>⇄ All types</option>
+      <option value="debit">💸 Expenses</option>
+      <option value="credit">💰 Income</option>
+    </select>
     <select class="sort-select" id="tx-date-select" onchange="onTxDateSelectChange()" style="flex-shrink:0; max-width:150px; margin-bottom:0;">
       <option value="all" selected>📅 All time</option>
       <option value="today">📅 Today</option>
@@ -691,9 +701,27 @@ UCE9Q9DAVM Confirmed. Ksh40.00 paid to BRILLIANT UNITED BARAKA SHOP via Kopo Kop
     <div class="modal-title" id="modal-title"></div>
     <div class="modal-sub" id="modal-sub"></div>
     <div class="modal-sms" id="modal-sms"></div>
-    <div class="modal-rule-toggle" id="modal-rule-toggle">
-      <input type="checkbox" id="modal-save-rule" checked>
-      <label for="modal-save-rule" id="modal-rule-label">Also save as a rule — automatically apply this category to future transactions with the same name</label>
+    <div class="modal-rule-toggle" id="modal-rule-toggle" style="flex-direction:column; align-items:flex-start;">
+      <div style="display:flex; align-items:flex-start; gap:10px; width:100%;">
+        <input type="checkbox" id="modal-save-rule" checked onchange="toggleModalAmountRangeVisibility()">
+        <label for="modal-save-rule" id="modal-rule-label">Also save as a rule — automatically apply this category to future transactions with the same name</label>
+      </div>
+      <div id="modal-amount-range-wrap" style="display:none; width:100%; margin-top:8px; padding:10px; background:var(--surface-lowest); border-radius:var(--radius-md); border:1px solid var(--outline-variant); box-sizing:border-box;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <input type="checkbox" id="modal-use-amount-range" onchange="toggleModalAmountInputs()">
+          <label for="modal-use-amount-range" style="font-size:12px; font-weight:600; color:var(--text-primary); cursor:pointer;">Restrict rule to specific amount range</label>
+        </div>
+        <div id="modal-amount-inputs" style="display:none; margin-top:8px; gap:8px; align-items:center;">
+          <div style="flex:1;">
+            <label style="font-size:10px; color:var(--text-secondary); display:block; margin-bottom:2px;">Min Ksh</label>
+            <input type="number" id="modal-min-amt" placeholder="e.g. 0" style="width:100%; padding:4px 8px; font-size:12px; border-radius:4px; border:1px solid var(--outline-variant); background:var(--surface-low); color:var(--text-primary); box-sizing:border-box;">
+          </div>
+          <div style="flex:1;">
+            <label style="font-size:10px; color:var(--text-secondary); display:block; margin-bottom:2px;">Max Ksh</label>
+            <input type="number" id="modal-max-amt" placeholder="e.g. 5000" style="width:100%; padding:4px 8px; font-size:12px; border-radius:4px; border:1px solid var(--outline-variant); background:var(--surface-low); color:var(--text-primary); box-sizing:border-box;">
+          </div>
+        </div>
+      </div>
     </div>
     <div class="modal-rule-toggle" id="modal-exclude-toggle" style="margin-top:0;">
       <input type="checkbox" id="modal-exclude-tx">
@@ -748,6 +776,12 @@ UCE9Q9DAVM Confirmed. Ksh40.00 paid to BRILLIANT UNITED BARAKA SHOP via Kopo Kop
 
     <button class="modal-cancel" onclick="document.getElementById('settings-modal').classList.remove('open')">Done</button>
   </div>
+</div>
+
+<!-- Undo Toast Container -->
+<div id="undo-toast" style="display:none; position:fixed; bottom:28px; left:50%; transform:translateX(-50%); z-index:9999; background:var(--surface-highest); color:var(--text-primary); border:1px solid var(--outline-variant); padding:10px 18px; border-radius:30px; box-shadow:0 10px 30px rgba(0,0,0,0.4); display:flex; align-items:center; gap:14px; font-size:13px; font-weight:600;">
+  <span id="undo-toast-text">Item deleted</span>
+  <button onclick="executeUndo()" style="background:var(--accent-primary); color:var(--text-on-primary); border:none; border-radius:16px; padding:4px 14px; font-size:12px; font-weight:800; cursor:pointer;">Undo</button>
 </div>
 
 <script>
@@ -883,7 +917,11 @@ let catMap={};
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 const TX_KEY='ke_tx_v5', RULES_KEY='ke_rules_v1', BUDGETS_KEY='ke_budgets_v1';
+const RAW_KEY='ke_raw_v1', SCHEMA_VERSION_KEY='ke_schema_v1';
+const CURRENT_SCHEMA_VERSION = 1;
+
 let transactions=[];
+let rawSnippets={};
 let nameRules={};
 let budgets={};
 let activeFilter='All', editingIndex=-1;
@@ -914,18 +952,66 @@ let draggingState = null;
 // safeLoad / safeStore defined at the top of the script block
 
 transactions=safeLoad(TX_KEY,[]);
+rawSnippets=safeLoad(RAW_KEY,{});
+
+function saveRawSnippets() {
+  safeStore(RAW_KEY, rawSnippets);
+}
+
+function getRawSMS(t) {
+  if(!t) return null;
+  if(t.ref && rawSnippets[t.ref]) return rawSnippets[t.ref];
+  if(t.raw) return t.raw;
+  return null;
+}
+
+// ── SCHEMA MIGRATION ──────────────────────────────────────────────────────────
+function migrateSchema() {
+  let storedVersion = safeLoad(SCHEMA_VERSION_KEY, 0);
+  let changed = false;
+
+  // Migration v0 -> v1:
+  // Separate raw SMS text out of transaction objects into rawSnippets map
+  // and standardize schema properties (excluded, txCost, manual, source).
+  transactions.forEach(t => {
+    if (t.raw) {
+      if (t.ref) rawSnippets[t.ref] = t.raw;
+      delete t.raw;
+      changed = true;
+    }
+    if (t.excluded === undefined) {
+      t.excluded = (t.category === 'Transfers');
+      changed = true;
+    }
+    if (t.txCost === undefined) { t.txCost = 0; changed = true; }
+    if (t.manual === undefined) { t.manual = !t.source || t.source === 'Manual'; changed = true; }
+    if (t.source === undefined) { t.source = t.manual ? 'Manual' : 'M-Pesa'; changed = true; }
+  });
+
+  if (changed || storedVersion < CURRENT_SCHEMA_VERSION) {
+    save();
+    saveRawSnippets();
+    safeStore(SCHEMA_VERSION_KEY, CURRENT_SCHEMA_VERSION);
+  }
+}
+
+// Run schema migration on load
+migrateSchema();
+
+// Check storage quota on load
+checkStorageQuota();
 
 // Auto-cleanup mistakenly parsed balance inquiries from local storage history
 let txChanged = false;
 const initialLen = transactions.length;
-transactions = transactions.filter(t => !/account balance was/i.test(t.raw || t.description || ''));
+transactions = transactions.filter(t => !/account balance was/i.test(getRawSMS(t) || t.description || ''));
 if (transactions.length < initialLen) txChanged = true;
 
 // Retro-actively extract proper names for old generic transactions
 transactions.forEach(t => {
-  if (t.manual || !t.raw) return;
+  const b = getRawSMS(t);
+  if (t.manual || !b) return;
   if (/^Payment$|^Money Sent$|^Received$|^Paybill$/i.test(t.description)) {
-    const b = t.raw;
     let newDesc = null;
     if(/you have received|received Ksh/i.test(b)){
       const m=b.match(/from\s+(.*?)(?:\s+(?:\+?254|0)\d{8,}|\s+on\b|\.)/i);
@@ -983,8 +1069,50 @@ function getBudgetForMonth(cat,monthKey){
   return 0;
 }
 
-function save(){safeStore(TX_KEY,transactions);}
+let trendsCache = { key: null, data: null };
+
+function save(){
+  trendsCache = { key: null, data: null };
+  safeStore(TX_KEY,transactions);
+}
 function saveRules(){safeStore(RULES_KEY,nameRules);}
+
+// ── UNDO TOAST LOGIC ─────────────────────────────────────────────────────────
+let pendingUndo = null;
+
+function showUndoToast(text, undoFn) {
+  if (pendingUndo) {
+    if (pendingUndo.timer) clearTimeout(pendingUndo.timer);
+    pendingUndo = null;
+  }
+  const toast = document.getElementById('undo-toast');
+  const textEl = document.getElementById('undo-toast-text');
+  if (!toast || !textEl) return;
+  textEl.textContent = text;
+  toast.style.display = 'flex';
+  pendingUndo = {
+    undoFn,
+    timer: setTimeout(() => {
+      clearUndoToast();
+    }, 10000)
+  };
+}
+
+function executeUndo() {
+  if (!pendingUndo) return;
+  const fn = pendingUndo.undoFn;
+  if (pendingUndo.timer) clearTimeout(pendingUndo.timer);
+  pendingUndo = null;
+  document.getElementById('undo-toast').style.display = 'none';
+  if (fn) fn();
+}
+
+function clearUndoToast() {
+  if (pendingUndo && pendingUndo.timer) clearTimeout(pendingUndo.timer);
+  pendingUndo = null;
+  const toast = document.getElementById('undo-toast');
+  if (toast) toast.style.display = 'none';
+}
 
 // ── DATE HELPERS ──────────────────────────────────────────────────────────────
 function parseDate(str){
@@ -1038,6 +1166,31 @@ function normDate(str){
   return str;
 }
 
+function extractMpesaAmount(b){
+  // 1. Prefer amount immediately after "confirmed" (with optional transaction verb)
+  let m = b.match(/\bconfirmed[\.\s]+(?:you\s+have\s+(?:received|sent|paid|withdrawn|bought)\s+)?Ksh\s?([\d,]+\.?\d*)/i);
+  if (m) return parseFloat(m[1].replace(/,/g, ''));
+
+  // 2. Prefer amount near main transaction action verbs
+  m = b.match(/\b(?:paid|received|sent|bought|withdrawn|deposit)\b[\s\S]{0,40}?Ksh\s?([\d,]+\.?\d*)/i);
+  if (m) return parseFloat(m[1].replace(/,/g, ''));
+
+  // 3. Prefer first Ksh amount that is not explicitly balance or transaction cost
+  const matches = Array.from(b.matchAll(/Ksh\s?([\d,]+\.?\d*)/gi));
+  for (const match of matches) {
+    const idx = match.index;
+    const prefix = b.slice(Math.max(0, idx - 30), idx).toLowerCase();
+    if (!prefix.includes('balance') && !prefix.includes('cost')) {
+      const val = parseFloat(match[1].replace(/,/g, ''));
+      if (!isNaN(val)) return val;
+    }
+  }
+
+  // 4. Fallback match
+  const amtMatch = b.match(/Ksh\s?([\d,]+\.?\d*)/i);
+  return amtMatch ? parseFloat(amtMatch[1].replace(/,/g, '')) : null;
+}
+
 function parseMpesaMessages(text){
   const results=[];
   const stats={
@@ -1065,8 +1218,7 @@ function parseMpesaMessages(text){
       stats.invalidAmt++;
       continue;
     }
-    const amtMatch=b.match(/Ksh\s?([\d,]+\.?\d*)/i);
-    const amount=amtMatch?parseFloat(amtMatch[1].replace(/,/g,'')):null;
+    const amount=extractMpesaAmount(b);
     if(!amount){
       stats.invalidAmt++;
       continue;
@@ -1113,7 +1265,8 @@ function parseMpesaMessages(text){
       aiCategory='Bills & Utilities';
     }
     const rawSnippet=b.length>220?b.slice(0,220)+'…':b;
-    results.push({ref,description,amount,type,category:aiCategory,source:'M-Pesa',date,time,balance,txCost,autoRule:null,raw:rawSnippet,manual:false});
+    rawSnippets[ref]=rawSnippet;
+    results.push({ref,description,amount,type,category:aiCategory,source:'M-Pesa',date,time,balance,txCost,autoRule:null,manual:false});
   }
   return { results, stats };
 }
@@ -1128,11 +1281,35 @@ function timeToMins(t){
 }
 function applyRules(tx){
   const key=(tx.description||'').trim().toUpperCase();
-  const matchedCat = nameRules[key];
+  const ruleData = nameRules[key];
   if(tx.manual) {
     if(tx.category === 'Transfers' && tx.excluded === undefined) tx.excluded = true;
     return tx;
   }
+  if(!ruleData) return tx;
+
+  let matchedCat = null;
+  const amt = tx.amount || 0;
+
+  const matchSingle = (r) => {
+    if(typeof r === 'string') return r;
+    if(r && typeof r === 'object'){
+      const minOk = r.minAmount === undefined || r.minAmount === null || r.minAmount === '' || amt >= parseFloat(r.minAmount);
+      const maxOk = r.maxAmount === undefined || r.maxAmount === null || r.maxAmount === '' || amt <= parseFloat(r.maxAmount);
+      if(minOk && maxOk) return r.category;
+    }
+    return null;
+  };
+
+  if(Array.isArray(ruleData)){
+    for(const r of ruleData){
+      matchedCat = matchSingle(r);
+      if(matchedCat) break;
+    }
+  } else {
+    matchedCat = matchSingle(ruleData);
+  }
+
   if(matchedCat){
     const isExcluded = matchedCat === 'Transfers' ? true : !!tx.excluded;
     return{...tx,category:matchedCat,autoRule:'name', excluded: isExcluded};
@@ -1172,7 +1349,7 @@ function parseMessages(){
   const autoCount=withRules.filter(t=>t.autoRule).length;
   const costCount=withRules.filter(t=>t.txCost>0).length;
   transactions=[...transactions,...withRules];
-  save();renderAll();
+  save();saveRawSnippets();renderAll();
   document.getElementById('sms-input').value='';
   
   let msg='Added '+withRules.length+' transaction'+(withRules.length!==1?'s':'')+'.';
@@ -1217,9 +1394,30 @@ function addManual(){
   if(!dateRaw){showError('Please select a date.');return;}
   // Convert YYYY-MM-DD → DD/MM/YYYY
   const[y,mo,d]=dateRaw.split('-');
+  const selectedDate = new Date(parseInt(y), parseInt(mo)-1, parseInt(d));
+  const now = new Date();
+  const maxAllowedFuture = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 23, 59, 59);
+  if (selectedDate.getTime() > maxAllowedFuture.getTime()) {
+    showError('Transaction date cannot be in the future (more than 1 day ahead). Please check the date.');
+    return;
+  }
+
   const date=d+'/'+mo+'/'+y;
+
+  const fullDesc = desc + (note ? ' (' + note + ')' : '');
+  const isDup = transactions.some(t =>
+    t.description.toLowerCase() === fullDesc.toLowerCase() &&
+    t.amount === amount &&
+    t.type === manualType &&
+    t.date === date
+  );
+  if(isDup){
+    showError('Duplicate transaction detected! An identical entry for this description, amount, type, and date already exists.');
+    return;
+  }
+
   const ref='MAN'+Date.now();
-  const tx={ref,description:desc+(note?' ('+note+')':''),amount,type:manualType,category:cat,source:'Manual',date,time:'',balance:null,txCost:0,autoRule:null,raw:null,manual:true,excluded:(cat==='Transfers')};
+  const tx={ref,description:fullDesc,amount,type:manualType,category:cat,source:'Manual',date,time:'',balance:null,txCost:0,autoRule:null,raw:null,manual:true,excluded:(cat==='Transfers')};
   transactions.push(tx);
   save();renderAll();
   document.getElementById('m-desc').value='';
@@ -1309,42 +1507,49 @@ function renderCalendar(d){
 function renderTrendsChart(){
   const mode = document.getElementById('trends-period-select')?.value || 'monthly';
   const now = new Date();
-  const periods = [];
+  const cacheKey = `${transactions.length}_${transactions[0]?.ref||''}_${transactions[transactions.length-1]?.ref||''}_${mode}`;
+  let periods = [];
   
-  if (mode === 'monthly') {
-    for(let i=5;i>=0;i--){
-      const d=new Date(now.getFullYear(),now.getMonth()-i,1);
-      const end=new Date(d.getFullYear(),d.getMonth()+1,0,23,59,59);
-      periods.push({label:d.toLocaleDateString('en-KE',{month:'short'}), start:d, end:end});
+  if (trendsCache.key === cacheKey && trendsCache.data) {
+    periods = trendsCache.data;
+  } else {
+    if (mode === 'monthly') {
+      for(let i=5;i>=0;i--){
+        const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+        const end=new Date(d.getFullYear(),d.getMonth()+1,0,23,59,59);
+        periods.push({label:d.toLocaleDateString('en-KE',{month:'short'}), start:d, end:end});
+      }
+    } else if (mode === 'daily') {
+      for(let i=6;i>=0;i--){
+        const d=startOfDay(now); d.setDate(d.getDate()-i);
+        const end=new Date(d.getTime()+86399999);
+        periods.push({label:d.toLocaleDateString('en-KE',{weekday:'short'}), start:d, end:end});
+      }
+    } else if (mode === 'weekly') {
+      for(let i=3;i>=0;i--){
+        const d=startOfWeek(now); d.setDate(d.getDate() - (i*7));
+        const end=new Date(d.getTime()+7*86400000-1);
+        periods.push({label:d.toLocaleDateString('en-KE',{day:'numeric',month:'short'}), start:d, end:end});
+      }
+    } else if (mode === 'yearly') {
+      for(let i=4;i>=0;i--){
+        const d=new Date(now.getFullYear()-i,0,1);
+        const end=new Date(now.getFullYear()-i,11,31,23,59,59);
+        periods.push({label:d.getFullYear().toString(), start:d, end:end});
+      }
     }
-  } else if (mode === 'daily') {
-    for(let i=6;i>=0;i--){
-      const d=startOfDay(now); d.setDate(d.getDate()-i);
-      const end=new Date(d.getTime()+86399999);
-      periods.push({label:d.toLocaleDateString('en-KE',{weekday:'short'}), start:d, end:end});
-    }
-  } else if (mode === 'weekly') {
-    for(let i=3;i>=0;i--){
-      const d=startOfWeek(now); d.setDate(d.getDate() - (i*7));
-      const end=new Date(d.getTime()+7*86400000-1);
-      periods.push({label:d.toLocaleDateString('en-KE',{day:'numeric',month:'short'}), start:d, end:end});
-    }
-  } else if (mode === 'yearly') {
-    for(let i=4;i>=0;i--){
-      const d=new Date(now.getFullYear()-i,0,1);
-      const end=new Date(now.getFullYear()-i,11,31,23,59,59);
-      periods.push({label:d.getFullYear().toString(), start:d, end:end});
-    }
-  }
 
-  periods.forEach(p => {
-    p.total = transactions
-      .filter(t=>t.type==='debit'&&!t.excluded)
-      .reduce((s,t)=>{
-        const td=parseDate(t.date);
-        return(td&&td>=p.start&&td<=p.end)?s+t.amount:s;
-      },0);
-  });
+    periods.forEach(p => {
+      p.total = transactions
+        .filter(t=>t.type==='debit'&&!t.excluded)
+        .reduce((s,t)=>{
+          const td=parseDate(t.date);
+          return(td&&td>=p.start&&td<=p.end)?s+t.amount:s;
+        },0);
+    });
+
+    trendsCache = { key: cacheKey, data: periods };
+  }
 
   const max=Math.max(...periods.map(m=>m.total),1);
   const el=document.getElementById('trends-chart');
@@ -1685,6 +1890,21 @@ function setBreakdownPeriod(mode,e){
 
 function shiftBreakdownPeriod(dir){breakdownPeriodOffset+=dir;renderBreakdown();}
 
+function syncBreakdownToDashboard(){
+  breakdownPeriodMode = periodMode;
+  breakdownPeriodOffset = periodOffset;
+  breakdownRangeFrom = rangeFrom;
+  breakdownRangeTo = rangeTo;
+  document.querySelectorAll('#tab-breakdown .period-tab').forEach((t, idx) => {
+    const modes = ['day', 'week', 'month', 'range'];
+    t.classList.toggle('active', modes[idx] === breakdownPeriodMode);
+  });
+  document.getElementById('bd-period-nav').style.display = breakdownPeriodMode === 'range' ? 'none' : 'flex';
+  document.getElementById('bd-range-picker').style.display = breakdownPeriodMode === 'range' ? 'block' : 'none';
+  renderBreakdown();
+  showResult('Breakdown period synced to Dashboard.');
+}
+
 function applyBreakdownRange(){
   const f=document.getElementById('bd-range-from').value;
   const t=document.getElementById('bd-range-to').value;
@@ -1858,6 +2078,7 @@ function renderTransactions(){
   const empty=document.getElementById('tx-empty');
   const query=(document.getElementById('tx-search')?.value||'').toLowerCase().trim();
   const sort=document.getElementById('tx-sort')?.value||'newest';
+  const typeFilter=document.getElementById('tx-type-select')?.value||'all';
 
   let list=transactions
     .map((t,i)=>({...t,_idx:i}))
@@ -1866,7 +2087,8 @@ function renderTransactions(){
       const d = parseDate(t.date);
       return d && d >= activeDateRange.from && d <= activeDateRange.to;
     })
-    .filter(t=>activeFilter==='All'||t.category===activeFilter)
+    .filter(t => typeFilter === 'all' || t.type === typeFilter)
+    .filter(t => activeFilter === 'All' || t.category === activeFilter)
     .filter(t=>{
       if(!query)return true;
       return(t.description||'').toLowerCase().includes(query)||(t.ref||'').toLowerCase().includes(query)||(t.category||'').toLowerCase().includes(query);
@@ -1936,9 +2158,10 @@ function renderTransactions(){
       const icon = getCategoryIcon(t.category);
       const iconBg = t.category==='Uncategorised' ? 'var(--surface-variant)' : c.bar+'33';
       const iconColor = t.category==='Uncategorised' ? 'var(--text-secondary)' : c.bar;
-      const preview=t.raw?
+      const rawSMS = getRawSMS(t);
+      const preview=rawSMS?
         '<div class="preview-toggle" id="ptog-'+t._idx+'" onclick="togglePreview('+t._idx+')"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle">expand_more</span> Show SMS</div>'
-        +'<div class="sms-preview" id="preview-'+t._idx+'"><div class="sms-text">&quot;'+escHtml(t.raw)+'&quot;</div></div>':'';
+        +'<div class="sms-preview" id="preview-'+t._idx+'"><div class="sms-text">&quot;'+escHtml(rawSMS)+'&quot;</div></div>':'';
       return'<div class="tx-card '+cls+'" onclick="openModal('+t._idx+')">'
         +'<div class="tx-top">'
         +'<div class="tx-icon" style="background:'+iconBg+';color:'+iconColor+'"><span class="material-symbols-outlined filled">'+icon+'</span></div>'
@@ -1983,6 +2206,29 @@ function getCategoryIcon(cat){
   return map[cat] || 'payments';
 }
 
+function formatRuleCondition(r) {
+  if (typeof r === 'string') return '';
+  if (!r || typeof r !== 'object') return '';
+  const min = r.minAmount;
+  const max = r.maxAmount;
+  if (min != null && min !== '' && max != null && max !== '') return `(Ksh ${fmt(min)} – Ksh ${fmt(max)})`;
+  if (min != null && min !== '') return `(≥ Ksh ${fmt(min)})`;
+  if (max != null && max !== '') return `(≤ Ksh ${fmt(max)})`;
+  return '';
+}
+
+function toggleModalAmountRangeVisibility() {
+  const saveChecked = document.getElementById('modal-save-rule')?.checked;
+  const wrap = document.getElementById('modal-amount-range-wrap');
+  if (wrap) wrap.style.display = saveChecked ? 'block' : 'none';
+}
+
+function toggleModalAmountInputs() {
+  const useRange = document.getElementById('modal-use-amount-range')?.checked;
+  const inputs = document.getElementById('modal-amount-inputs');
+  if (inputs) inputs.style.display = useRange ? 'flex' : 'none';
+}
+
 // ── RULES TAB ─────────────────────────────────────────────────────────────────
 function renderRules(){
   const keys=Object.keys(nameRules);
@@ -1992,13 +2238,22 @@ function renderRules(){
   if(!keys.length){empty.style.display='block';list.innerHTML='';return;}
   empty.style.display='none';
   list.innerHTML=keys.sort().map(name=>{
-    const cat=nameRules[name];const c=catMap[cat]||catMap['Other'];
+    const ruleVal = nameRules[name];
+    const rulesArr = Array.isArray(ruleVal) ? ruleVal : [ruleVal];
     const cnt=transactions.filter(t=>(t.description||'').trim().toUpperCase()===name).length;
-    const badgeBg = cat === 'Uncategorised' ? 'var(--surface-variant)' : c.bar + '33';
-    const badgeColor = cat === 'Uncategorised' ? 'var(--text-secondary)' : c.bar;
-    return'<div class="rule-card"><div class="rule-left"><div class="rule-name">'+escHtml(name)+'</div>'
-      +'<div class="rule-detail"><span class="badge" style="background:'+badgeBg+';color:'+badgeColor+';font-size:10px;padding:2px 6px;border-radius:4px;font-weight:600;display:inline-block;margin-right:8px;">'+cat+'</span>'
-      +'<span style="font-size:12px;color:#bbb">'+cnt+' transaction'+(cnt!==1?'s':'')+'</span></div></div>'
+
+    const rulesHtml = rulesArr.map(r => {
+      const cat = typeof r === 'string' ? r : (r.category || 'Uncategorised');
+      const c = catMap[cat] || catMap['Other'];
+      const cond = formatRuleCondition(r);
+      const badgeBg = cat === 'Uncategorised' ? 'var(--surface-variant)' : c.bar + '33';
+      const badgeColor = cat === 'Uncategorised' ? 'var(--text-secondary)' : c.bar;
+      return `<span class="badge" style="background:${badgeBg};color:${badgeColor};font-size:10px;padding:2px 6px;border-radius:4px;font-weight:600;display:inline-block;margin-right:4px;">${cat}${cond ? ' ' + cond : ''}</span>`;
+    }).join('');
+
+    return '<div class="rule-card"><div class="rule-left"><div class="rule-name">'+escHtml(name)+'</div>'
+      +'<div class="rule-detail">'+rulesHtml
+      +'<span style="font-size:12px;color:#bbb;margin-left:8px;">'+cnt+' transaction'+(cnt!==1?'s':'')+'</span></div></div>'
       +'<button class="rule-delete" onclick="deleteRule(event,\''+name.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')" >Remove</button></div>';
   }).join('');
 }
@@ -2065,20 +2320,31 @@ function openModal(idx){
   document.getElementById('modal-title').textContent=tx.description;
   document.getElementById('modal-sub').textContent=(tx.type==='debit'?'-':'+')+fmt(tx.amount)+(tx.date?' · '+tx.date:'')+(tx.time?' '+tx.time:'');
   const smsEl=document.getElementById('modal-sms');
-  if(tx.raw){smsEl.textContent=tx.raw;smsEl.style.display='block';}else{smsEl.style.display='none';}
+  const rawSMS=getRawSMS(tx);
+  if(rawSMS){smsEl.textContent=rawSMS;smsEl.style.display='block';}else{smsEl.style.display='none';}
 
   // Rule toggle — hide for manual entries
   const ruleToggle=document.getElementById('modal-rule-toggle');
   ruleToggle.style.display=tx.manual?'none':'flex';
   const existingRule=nameRules[key];
-  // Pre-uncheck if a rule exists to prevent accidental global changes to old transactions.
-  // The user can still check it manually if they want to update the rule.
+  const existingStr = typeof existingRule === 'string' ? existingRule : (Array.isArray(existingRule) ? existingRule.map(r=>r.category).join(', ') : (existingRule?.category||''));
   document.getElementById('modal-save-rule').checked=existingRule ? false : true;
   
+  const ruleWrap = document.getElementById('modal-amount-range-wrap');
+  const useRangeCb = document.getElementById('modal-use-amount-range');
+  const amountInputs = document.getElementById('modal-amount-inputs');
+  if(ruleWrap && useRangeCb && amountInputs) {
+    ruleWrap.style.display = document.getElementById('modal-save-rule').checked ? 'block' : 'none';
+    useRangeCb.checked = false;
+    amountInputs.style.display = 'none';
+    document.getElementById('modal-min-amt').value = '';
+    document.getElementById('modal-max-amt').value = '';
+  }
+
   const ruleLabel=document.getElementById('modal-rule-label');
   if(ruleLabel){
     if(existingRule){
-      ruleLabel.innerHTML='Update rule for <strong>all</strong> "'+escHtml(tx.description)+'" transactions (Current rule: '+existingRule+')';
+      ruleLabel.innerHTML='Update rule for <strong>all</strong> "'+escHtml(tx.description)+'" transactions (Current rule: '+escHtml(existingStr)+')';
     }else{
       ruleLabel.innerHTML='Save as a new rule for future "'+escHtml(tx.description)+'" transactions';
     }
@@ -2116,11 +2382,37 @@ function setCategory(cat){
   // Optionally save/remove rule
   if(!tx.manual){
     if(saveRule&&cat!=='Uncategorised'){
-      nameRules[key]=cat;
+      const useRange = document.getElementById('modal-use-amount-range')?.checked;
+      const minRaw = document.getElementById('modal-min-amt')?.value;
+      const maxRaw = document.getElementById('modal-max-amt')?.value;
+      const minVal = useRange && minRaw !== '' && minRaw != null ? parseFloat(minRaw) : null;
+      const maxVal = useRange && maxRaw !== '' && maxRaw != null ? parseFloat(maxRaw) : null;
+
+      const newRule = useRange ? {
+        category: cat,
+        minAmount: minVal,
+        maxAmount: maxVal
+      } : cat;
+
+      const existingRule = nameRules[key];
+      if (useRange) {
+        if (!existingRule) {
+          nameRules[key] = [newRule];
+        } else if (typeof existingRule === 'string') {
+          nameRules[key] = [newRule];
+        } else if (Array.isArray(existingRule)) {
+          nameRules[key] = [...existingRule.filter(r => typeof r === 'object' && r.category !== cat), newRule];
+        } else if (typeof existingRule === 'object') {
+          nameRules[key] = [newRule];
+        }
+      } else {
+        nameRules[key] = cat;
+      }
+      
       // Apply to all other transactions with same name
       transactions=transactions.map((t,i)=>
         i!==editingIndex&&(t.description||'').trim().toUpperCase()===key&&!t.manual
-          ?{...t,category:cat,autoRule:'name', excluded: (cat==='Transfers' ? true : t.excluded)}:t
+          ? applyRules(t) : t
       );
     }else if(!saveRule){
       // Don't touch rule, just update this one transaction
@@ -2133,9 +2425,17 @@ function setCategory(cat){
 
 function deleteTransaction(){
   if(editingIndex<0)return;
-  if(!confirm('Delete this transaction?'))return;
-  transactions.splice(editingIndex,1);
-  save();renderAll();closeModal();
+  const idx = editingIndex;
+  const deletedTx = transactions.splice(idx, 1)[0];
+  save();
+  renderAll();
+  closeModal();
+  showUndoToast('Transaction deleted', () => {
+    transactions.splice(idx, 0, deletedTx);
+    save();
+    renderAll();
+    showResult('Transaction restored.');
+  });
 }
 
 function closeModal(){
@@ -2216,14 +2516,22 @@ function saveReorder(){
 
 function deleteRule(e,name){
   e.stopPropagation();
-  if(!confirm('Remove rule for "'+name+'"?'))return;
-  delete nameRules[name];saveRules();renderRules();
+  const oldRule = nameRules[name];
+  delete nameRules[name];
+  saveRules();
+  renderRules();
+  showUndoToast('Rule for "'+name+'" removed', () => {
+    nameRules[name] = oldRule;
+    saveRules();
+    renderRules();
+    showResult('Rule restored.');
+  });
 }
 
 // ── BACKUP & RESTORE ──────────────────────────────────────────────────────────
 function exportBackup() {
   const filterOrder = safeLoad('ke_filters', []);
-  const data = { transactions, CATS, nameRules, budgets, tabOrder, filterOrder, version: 1 };
+  const data = { transactions, rawSnippets, CATS, nameRules, budgets, tabOrder, filterOrder, schemaVersion: CURRENT_SCHEMA_VERSION, version: 1 };
   const json = JSON.stringify(data);
   const blob = new Blob([json], {type: 'application/json'});
   const url = URL.createObjectURL(blob);
@@ -2248,6 +2556,7 @@ function importBackup(e) {
            e.target.value = ''; return;
         }
         transactions = data.transactions || [];
+        rawSnippets = data.rawSnippets || {};
         CATS = data.CATS || [];
         if (!CATS.find(c=>c.name==='Uncategorised')) CATS.push({name:'Uncategorised',color:'#92400e',bg:'#fef3c7',bar:'#f59e0b'});
         nameRules = data.nameRules || {};
@@ -2255,9 +2564,10 @@ function importBackup(e) {
         if (data.tabOrder) tabOrder = data.tabOrder;
         if (data.filterOrder) safeStore('ke_filters', data.filterOrder);
         
-        save(); saveCats(); saveRules(); safeStore(BUDGETS_KEY, budgets);
+        save(); saveRawSnippets(); saveCats(); saveRules(); safeStore(BUDGETS_KEY, budgets);
         if(data.tabOrder) safeStore('ke_tabs', tabOrder);
         
+        migrateSchema();
         rebuildCatMap(); renderAll();
         showResult('Data restored successfully!');
       } else {
@@ -2304,6 +2614,27 @@ function selectNewColor(i){
   buildColorPicker();
 }
 
+function toggleCatColorGrid(i, e) {
+  if (e) e.stopPropagation();
+  const popover = document.getElementById('cat-color-popover-' + i);
+  if (!popover) return;
+  const isOpen = popover.style.display === 'flex';
+  document.querySelectorAll('.cat-color-popover').forEach(p => p.style.display = 'none');
+  popover.style.display = isOpen ? 'none' : 'flex';
+}
+
+function selectCatColor(catIdx, paletteIdx) {
+  const p = COLOR_PALETTE[paletteIdx];
+  CATS[catIdx] = { ...CATS[catIdx], color: p.color, bg: p.bg, bar: p.bar };
+  saveCats(); rebuildCatMap(); renderAll(); renderCategoryManager();
+}
+
+function closeCatColorPopovers(e) {
+  if (!e.target.closest('.cat-color-popover') && !e.target.closest('.cat-mgmt-swatch')) {
+    document.querySelectorAll('.cat-color-popover').forEach(p => p.style.display = 'none');
+  }
+}
+
 function renderCategoryManager(){
   buildColorPicker();
   const list=document.getElementById('cat-mgmt-list');
@@ -2311,8 +2642,15 @@ function renderCategoryManager(){
   list.innerHTML=CATS.map((c,i)=>{
     const isUncategorised=c.name==='Uncategorised';
     const txCount=transactions.filter(t=>t.category===c.name).length;
-    return'<div class="cat-mgmt-card" id="catrow-'+i+'">'
-      +'<div class="cat-mgmt-swatch" style="background:'+c.bar+'" onclick="pickCatColor('+i+')" title="Click to change colour"></div>'
+    const colorSwatches = COLOR_PALETTE.map((p, pIdx) =>
+      `<div class="color-swatch${p.bar === c.bar ? ' selected' : ''}" style="background:${p.bar}; width:20px; height:20px; border-radius:50%; cursor:pointer; flex-shrink:0;" onclick="selectCatColor(${i}, ${pIdx})" title="${p.bar}"></div>`
+    ).join('');
+
+    return '<div class="cat-mgmt-card" id="catrow-'+i+'" style="position:relative;">'
+      +'<div class="cat-mgmt-swatch" style="background:'+c.bar+'" onclick="toggleCatColorGrid('+i+', event)" title="Click to choose colour"></div>'
+      +'<div class="cat-color-popover" id="cat-color-popover-'+i+'" style="display:none; position:absolute; top:42px; left:16px; z-index:100; background:var(--surface-highest); border:1px solid var(--outline-variant); border-radius:12px; padding:8px; gap:6px; box-shadow:0 8px 20px rgba(0,0,0,0.3); flex-wrap:wrap; max-width:140px;">'
+      +colorSwatches
+      +'</div>'
       +'<span class="cat-mgmt-name" id="catname-display-'+i+'">'+escHtml(c.name)+'</span>'
       +'<input class="cat-mgmt-name-input" id="catname-input-'+i+'" value="'+escHtml(c.name)+'" style="display:none" onkeydown="if(event.key===\'Enter\')saveCatRename('+i+')">'
       +'<span class="cat-mgmt-count">'+txCount+' tx</span>'
@@ -2323,17 +2661,9 @@ function renderCategoryManager(){
       +'</div>'
       +'</div>';
   }).join('');
-}
 
-// Inline colour picker for existing category
-function pickCatColor(i){
-  const c=CATS[i];
-  const chosen=COLOR_PALETTE.find(p=>p.bar===c.bar)||COLOR_PALETTE[0];
-  const current=COLOR_PALETTE.indexOf(chosen);
-  const next=(current+1)%COLOR_PALETTE.length;
-  const p=COLOR_PALETTE[next];
-  CATS[i]={...CATS[i],color:p.color,bg:p.bg,bar:p.bar};
-  saveCats();rebuildCatMap();renderAll();renderCategoryManager();
+  document.removeEventListener('click', closeCatColorPopovers);
+  document.addEventListener('click', closeCatColorPopovers);
 }
 
 function startCatEdit(i){
